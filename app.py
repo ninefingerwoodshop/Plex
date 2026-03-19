@@ -1403,6 +1403,185 @@ def arrivals_discord():
 
 
 # ============================================================
+#  WATCHLIST
+# ============================================================
+
+@app.route("/watchlist")
+@login_required
+def watchlist_page():
+    return render_template("watchlist.html", username=session.get("username", ""))
+
+
+@app.route("/api/watchlist")
+@login_required
+def api_watchlist_get():
+    from watchlist import get_watchlist
+    username = session.get("username", "")
+    return jsonify(get_watchlist(username))
+
+
+@app.route("/api/watchlist/add", methods=["POST"])
+@login_required
+def api_watchlist_add():
+    from watchlist import add_to_watchlist
+    username = session.get("username", "")
+    data = request.get_json(force=True)
+    added = add_to_watchlist(username, data)
+    if added:
+        return jsonify({"message": "Added to watchlist"})
+    return jsonify({"message": "Already in watchlist"}), 409
+
+
+@app.route("/api/watchlist/remove", methods=["POST"])
+@login_required
+def api_watchlist_remove():
+    from watchlist import remove_from_watchlist
+    username = session.get("username", "")
+    data = request.get_json(force=True)
+    remove_from_watchlist(username, data.get("title", ""))
+    return jsonify({"message": "Removed"})
+
+
+# ============================================================
+#  RATINGS
+# ============================================================
+
+RATINGS_FILE = os.path.join(os.path.dirname(__file__), "ratings.json")
+
+
+def _load_ratings():
+    if os.path.exists(RATINGS_FILE):
+        with open(RATINGS_FILE) as f:
+            return json.load(f)
+    return {}
+
+
+def _save_ratings(data):
+    with open(RATINGS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+@app.route("/api/rate", methods=["POST"])
+@login_required
+def api_rate():
+    username = session.get("username", "")
+    data = request.get_json(force=True)
+    title = data.get("title", "")
+    rating = int(data.get("rating", 0))
+    ratings = _load_ratings()
+    if username not in ratings:
+        ratings[username] = {}
+    ratings[username][title] = rating
+    _save_ratings(ratings)
+    return jsonify({"message": "Rating saved"})
+
+
+@app.route("/api/ratings")
+@login_required
+def api_ratings_get():
+    username = request.args.get("user", session.get("username", ""))
+    ratings = _load_ratings()
+    return jsonify(ratings.get(username, {}))
+
+
+# ============================================================
+#  ON DECK
+# ============================================================
+
+@app.route("/ondeck")
+@login_required
+def ondeck_page():
+    return render_template("ondeck.html", username=session.get("username", ""))
+
+
+@app.route("/api/ondeck")
+@login_required
+def api_ondeck():
+    try:
+        data = plex_get(f"/library/sections/{PLEX['tv_section']}/onDeck")
+        items = data.get("MediaContainer", {}).get("Metadata", [])
+        result = []
+        for item in items[:30]:
+            thumb = item.get("thumb", "") or item.get("parentThumb", "")
+            poster = f"{PLEX['url']}{thumb}?X-Plex-Token={PLEX['token']}" if thumb else ""
+            result.append({
+                "title": item.get("grandparentTitle", item.get("title", "")),
+                "subtitle": f"S{item.get('parentIndex', 0):02d}E{item.get('index', 0):02d} · {item.get('title', '')}",
+                "poster": poster,
+                "progress": round((item.get("viewOffset", 0) / item["duration"]) * 100) if item.get("duration") else 0,
+                "year": item.get("year", ""),
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================
+#  NZBGET DASHBOARD WIDGET
+# ============================================================
+
+@app.route("/api/dashboard/nzbget")
+@login_required
+def dashboard_nzbget():
+    try:
+        r = req.post(f"{NZBGET['url']}/jsonrpc", json={"method": "status", "params": []}, timeout=5)
+        status = r.json().get("result", {})
+        rq = req.post(f"{NZBGET['url']}/jsonrpc", json={"method": "listgroups", "params": []}, timeout=5)
+        groups = rq.json().get("result", [])
+        queue = [
+            {
+                "name": g.get("NZBName", "?"),
+                "size_mb": round(g.get("FileSizeMB", 0)),
+                "remaining_mb": round(g.get("RemainingSizeMB", 0)),
+                "pct": round(100 * (1 - g.get("RemainingSizeMB", 0) / g.get("FileSizeMB", 1))) if g.get("FileSizeMB") else 0,
+                "status": g.get("Status", "?"),
+            }
+            for g in groups[:10]
+        ]
+        speed_mbps = round(status.get("DownloadRate", 0) / 1024 / 1024, 1)
+        return jsonify({
+            "speed_mbps": speed_mbps,
+            "standby": status.get("ServerStandBy", True),
+            "queue": queue,
+            "free_disk_gb": round(status.get("FreeDiskSpaceMB", 0) / 1024, 1),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "speed_mbps": 0, "standby": True, "queue": []})
+
+
+# ============================================================
+#  LIBRARY GROWTH CHART
+# ============================================================
+
+@app.route("/api/dashboard/growth")
+@login_required
+def dashboard_growth():
+    """Monthly library growth from Radarr/Sonarr history."""
+    from collections import defaultdict
+    counts = defaultdict(lambda: {"movies": 0, "shows": 0})
+    try:
+        hist = radarr_get("/history", {"pageSize": 500, "sortKey": "date", "sortDirection": "descending"})
+        for r in hist.get("records", []):
+            if r.get("eventType") == "downloadFolderImported":
+                d = r.get("date", "")[:7]
+                if d:
+                    counts[d]["movies"] += 1
+    except Exception:
+        pass
+    try:
+        hist = sonarr_get("/history", {"pageSize": 500, "sortKey": "date", "sortDirection": "descending"})
+        for r in hist.get("records", []):
+            if r.get("eventType") == "downloadFolderImported":
+                d = r.get("date", "")[:7]
+                if d:
+                    counts[d]["shows"] += 1
+    except Exception:
+        pass
+    months = sorted(counts.keys())[-12:]
+    return jsonify([{"month": m, "movies": counts[m]["movies"], "shows": counts[m]["shows"]} for m in months])
+
+
+# ============================================================
 #  HEALTH MONITOR BACKGROUND THREAD
 # ============================================================
 

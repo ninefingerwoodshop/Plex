@@ -403,6 +403,10 @@
         @media (min-width: 1024px) {
             .poster-grid { grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 20px; }
         }
+        .star-row { display: flex; gap: 2px; margin-top: 6px; }
+        .star { font-size: 0.75rem; cursor: pointer; color: rgba(255,255,255,0.15); transition: color 0.15s; }
+        .star.filled { color: var(--gold); }
+        .star:active { transform: scale(1.2); }
     </style>
 </head>
 <body>
@@ -424,8 +428,10 @@
         </div>
         <a href="/"><span class="menu-icon">&#128269;</span> Search</a>
         <a href="/downloads" class="active"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/watchlist"><span class="menu-icon">&#128278;</span> Watchlist</a>
         <a href="/dashboard"><span class="menu-icon">&#128202;</span> Dashboard</a>
         <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/ondeck"><span class="menu-icon">&#9654;</span> On Deck</a>
         <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
         <a href="/arrivals"><span class="menu-icon">&#127381;</span> New Arrivals</a>
         <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
@@ -599,6 +605,9 @@
                             </div>
                         </div>
                         <button class="btn-remove" id="rm-${idx}" onclick="removeItem(${idx})">Remove</button>
+                        <div class="star-row" id="stars-${idx}">
+                          ${[1,2,3,4,5].map(n => `<span class="star" onclick="rateItem('${escapeAttr(item.title)}','${item.type}',${n},${idx})" data-n="${n}">&#9733;</span>`).join('')}
+                        </div>
                     </div>
                 </div>
             `;
@@ -700,7 +709,48 @@
             return (text || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        let userRatings = {};
+
+        async function loadRatings() {
+            try {
+                const res = await fetch(`/api/ratings?user=${encodeURIComponent(currentUser)}`);
+                if (!res.ok) return;
+                userRatings = await res.json();
+                applyRatings();
+            } catch {}
+        }
+
+        function applyRatings() {
+            const items = allDownloads[currentUser] || [];
+            items.forEach((item, idx) => {
+                const rating = userRatings[item.title] || 0;
+                setStarDisplay(idx, rating);
+            });
+        }
+
+        function setStarDisplay(idx, rating) {
+            const row = document.getElementById(`stars-${idx}`);
+            if (!row) return;
+            row.querySelectorAll('.star').forEach(star => {
+                const n = parseInt(star.getAttribute('data-n'));
+                star.classList.toggle('filled', n <= rating);
+            });
+        }
+
+        async function rateItem(title, type, rating, idx) {
+            setStarDisplay(idx, rating);
+            userRatings[title] = rating;
+            try {
+                await fetch('/api/rate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title, type, rating}),
+                });
+            } catch {}
+        }
+
         loadDownloads();
+        loadRatings();
 
         window.addEventListener('beforeunload', () => {
             if (eventSource) eventSource.close();

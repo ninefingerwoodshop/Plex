@@ -518,6 +518,48 @@
         @keyframes fadeOut { to { opacity: 0; } }
 
         /* Desktop */
+        /* NZBGet Downloads Widget */
+        .nzb-widget {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #252525;
+            margin-bottom: 28px;
+        }
+        .nzb-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .nzb-speed {
+            font-size: 1.4rem; font-weight: 700; color: #e5a00d;
+        }
+        .nzb-speed-label { font-size: 0.7rem; color: #888; }
+        .nzb-idle { font-size: 0.85rem; color: #555; font-style: italic; }
+        .nzb-queue { display: flex; flex-direction: column; gap: 8px; }
+        .nzb-item { background: rgba(255,255,255,0.03); border-radius: 7px; padding: 10px 12px; border: 1px solid #252525; }
+        .nzb-item-name {
+            font-size: 0.75rem; font-weight: 600; color: #ddd;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            margin-bottom: 6px;
+        }
+        .nzb-item-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+        .nzb-item-fill {
+            height: 100%; border-radius: 2px;
+            background: linear-gradient(90deg, #e5a00d, #f7c948);
+            transition: width 0.5s ease;
+        }
+        .nzb-item-meta { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.6rem; color: #666; }
+
+        /* Growth Chart */
+        .chart-wrap {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #252525;
+            margin-bottom: 28px;
+        }
+        .chart-container { position: relative; height: 220px; }
+
         @media (min-width: 600px) {
             .page-content { padding: 28px 32px 60px; }
             .quick-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
@@ -525,12 +567,14 @@
             .stream-card { padding: 16px 20px; }
             .disk-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
             .upcoming-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+            .chart-container { height: 260px; }
         }
         @media (min-width: 1024px) {
             .quick-stats { grid-template-columns: repeat(5, 1fr); }
             .upcoming-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <header>
@@ -551,8 +595,10 @@
         </div>
         <a href="/"><span class="menu-icon">&#128269;</span> Search</a>
         <a href="/downloads"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/watchlist"><span class="menu-icon">&#128278;</span> Watchlist</a>
         <a href="/dashboard" class="active"><span class="menu-icon">&#128202;</span> Dashboard</a>
         <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/ondeck"><span class="menu-icon">&#9654;</span> On Deck</a>
         <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
         <a href="/arrivals"><span class="menu-icon">&#127381;</span> New Arrivals</a>
         <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
@@ -600,6 +646,17 @@
             <div class="empty-streams">No active streams</div>
         </div>
 
+        <!-- Downloads (NZBGet) -->
+        <div class="section-header">
+            <div class="section-title">Downloads</div>
+            <button class="btn-refresh" onclick="loadNzbget()" id="btnRefreshNzb">
+                <span class="refresh-icon">&#8635;</span> Refresh
+            </button>
+        </div>
+        <div id="nzbWidget" class="nzb-widget">
+            <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+
         <!-- System Status -->
         <div class="section-header">
             <div class="section-title">System Status</div>
@@ -637,6 +694,19 @@
         </div>
         <div id="recentList" class="recent-list">
             <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+
+        <!-- Library Growth Chart -->
+        <div class="section-header">
+            <div class="section-title">Library Growth</div>
+            <button class="btn-refresh" onclick="loadGrowth()" id="btnRefreshGrowth">
+                <span class="refresh-icon">&#8635;</span> Refresh
+            </button>
+        </div>
+        <div class="chart-wrap">
+            <div class="chart-container">
+                <canvas id="growthChart"></canvas>
+            </div>
         </div>
 
     </div>
@@ -970,12 +1040,149 @@
             setTimeout(() => toast.remove(), 4000);
         }
 
+        /* ── NZBGet Widget ──────────────────────────────────── */
+        async function loadNzbget() {
+            const btn = document.getElementById('btnRefreshNzb');
+            btn.classList.add('spinning');
+            const container = document.getElementById('nzbWidget');
+
+            try {
+                const res = await fetch('/api/dashboard/nzbget');
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                if (data.standby || !data.queue || data.queue.length === 0) {
+                    container.innerHTML = `
+                        <div class="nzb-header">
+                            <div>
+                                <div class="nzb-speed">0 MB/s</div>
+                                <div class="nzb-speed-label">Download Speed</div>
+                            </div>
+                            ${data.free_disk_gb ? `<div style="font-size:0.7rem;color:#666">${data.free_disk_gb} GB free</div>` : ''}
+                        </div>
+                        <div class="nzb-idle">NZBGet is idle &mdash; no active downloads</div>
+                    `;
+                } else {
+                    const queueHtml = data.queue.map(g => `
+                        <div class="nzb-item">
+                            <div class="nzb-item-name">${escapeHtml(g.name)}</div>
+                            <div class="nzb-item-bar">
+                                <div class="nzb-item-fill" style="width:${g.pct}%"></div>
+                            </div>
+                            <div class="nzb-item-meta">
+                                <span>${g.pct}% &mdash; ${escapeHtml(g.status)}</span>
+                                <span>${g.remaining_mb} MB left</span>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    container.innerHTML = `
+                        <div class="nzb-header">
+                            <div>
+                                <div class="nzb-speed">${data.speed_mbps} MB/s</div>
+                                <div class="nzb-speed-label">Download Speed</div>
+                            </div>
+                            ${data.free_disk_gb ? `<div style="font-size:0.7rem;color:#666">${data.free_disk_gb} GB free</div>` : ''}
+                        </div>
+                        <div class="nzb-queue">${queueHtml}</div>
+                    `;
+                }
+            } catch {
+                container.innerHTML = '<div class="empty-msg">Failed to load NZBGet status.</div>';
+            }
+
+            btn.classList.remove('spinning');
+        }
+
+        /* ── Library Growth Chart ───────────────────────────── */
+        let growthChart = null;
+
+        async function loadGrowth() {
+            const btn = document.getElementById('btnRefreshGrowth');
+            btn.classList.add('spinning');
+
+            try {
+                const res = await fetch('/api/dashboard/growth');
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                const labels = data.map(d => d.month);
+                const movies = data.map(d => d.movies);
+                const shows = data.map(d => d.shows);
+
+                if (growthChart) {
+                    growthChart.data.labels = labels;
+                    growthChart.data.datasets[0].data = movies;
+                    growthChart.data.datasets[1].data = shows;
+                    growthChart.update();
+                } else {
+                    const ctx = document.getElementById('growthChart').getContext('2d');
+                    growthChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Movies',
+                                    data: movies,
+                                    backgroundColor: 'rgba(229,160,13,0.7)',
+                                    borderColor: '#e5a00d',
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                },
+                                {
+                                    label: 'TV Shows',
+                                    data: shows,
+                                    backgroundColor: 'rgba(52,152,219,0.7)',
+                                    borderColor: '#3498db',
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: '#888', font: { size: 11 } },
+                                },
+                            },
+                            scales: {
+                                x: {
+                                    ticks: { color: '#666', font: { size: 10 } },
+                                    grid: { color: 'rgba(255,255,255,0.04)' },
+                                },
+                                y: {
+                                    ticks: { color: '#666', font: { size: 10 } },
+                                    grid: { color: 'rgba(255,255,255,0.04)' },
+                                    beginAtZero: true,
+                                },
+                            },
+                        },
+                    });
+                }
+            } catch {
+                document.getElementById('growthChart').parentElement.innerHTML =
+                    '<div class="empty-msg">Failed to load library growth data.</div>';
+            }
+
+            btn.classList.remove('spinning');
+        }
+
         /* ── Init ───────────────────────────────────────────── */
         connectStream();
         loadStats();
+        loadNzbget();
         loadDiskSpace();
         loadUpcoming();
         loadRecent();
+        loadGrowth();
+
+        // Poll NZBGet every 10 seconds
+        setInterval(loadNzbget, 10000);
 
         window.addEventListener('beforeunload', () => {
             if (eventSource) eventSource.close();

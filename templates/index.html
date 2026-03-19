@@ -423,6 +423,20 @@
         }
         .type-badge-movie { background: rgba(52,152,219,0.8); color: #fff; }
         .type-badge-series { background: rgba(46,204,113,0.8); color: #fff; }
+        .btn-watchlist {
+            margin-top: 6px;
+            padding: 6px 0;
+            background: transparent;
+            color: rgba(255,255,255,0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.25s;
+        }
+        .btn-watchlist:active { background: rgba(229,160,13,0.12); color: var(--gold); border-color: var(--gold); }
+        .btn-watchlist.saved { color: var(--gold); border-color: rgba(229,160,13,0.4); }
 
         /* Toast */
         .toast-container {
@@ -657,8 +671,10 @@
         </div>
         <a href="/" class="active"><span class="menu-icon">&#128269;</span> Search</a>
         <a href="/downloads"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/watchlist"><span class="menu-icon">&#128278;</span> Watchlist</a>
         <a href="/dashboard"><span class="menu-icon">&#128202;</span> Dashboard</a>
         <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/ondeck"><span class="menu-icon">&#9654;</span> On Deck</a>
         <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
         <a href="/arrivals"><span class="menu-icon">&#127381;</span> New Arrivals</a>
         <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
@@ -828,6 +844,7 @@
                             <button class="btn-add" id="btn-${idx}" onclick="event.stopPropagation(); addContent(${idx})">
                                 Add & Download
                             </button>
+                            <button class="btn-watchlist" id="wl-${idx}" onclick="event.stopPropagation(); addToWatchlist(${idx})">&#128278;</button>
                         </div>
                     </div>
                 `;
@@ -1033,6 +1050,39 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeDetail();
         });
+
+        async function addToWatchlist(idx) {
+            const item = allResults[idx];
+            if (!item) return;
+            const btn = document.getElementById(`wl-${idx}`);
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/watchlist/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title: item.title,
+                        type: item.type,
+                        poster: item.poster || '',
+                        tmdbId: item.tmdbId || item.payload?.tmdbId || null,
+                        tvdbId: item.tvdbId || item.payload?.tvdbId || null,
+                        year: item.year || '',
+                    }),
+                });
+                const data = await res.json();
+                if (res.ok || res.status === 409) {
+                    if (btn) { btn.textContent = '\uD83D\uDD16'; btn.classList.add('saved'); }
+                    showToast(data.message, 'success');
+                } else {
+                    if (btn) btn.disabled = false;
+                    showToast(data.message || 'Failed to add', 'error');
+                }
+            } catch {
+                if (btn) btn.disabled = false;
+                showToast('Network error', 'error');
+            }
+        }
     </script>
 </body>
 </html>

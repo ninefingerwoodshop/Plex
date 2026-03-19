@@ -252,6 +252,20 @@ REQUEST_TEMPLATE = """<!DOCTYPE html>
   </div>
   <div class="grid" id="results"></div>
   <p id="status" class="empty" style="display:none"></p>
+
+  <hr style="border-color:#2a2a2a;margin:32px 0 24px;">
+  <h2>Import from Trakt</h2>
+  <p style="color:#aaa;margin-bottom:16px;font-size:.9rem;">Paste a public Trakt list URL to batch-request all items.</p>
+  <div class="form-group">
+    <label>Your Name</label>
+    <input id="traktRequester" type="text" placeholder="Enter your name">
+  </div>
+  <div class="search-bar">
+    <input id="traktUrl" type="text" placeholder="https://trakt.tv/users/username/lists/listname">
+    <button onclick="importTrakt()">Import List</button>
+  </div>
+  <p id="traktStatus" class="empty" style="display:none"></p>
+  <div id="traktResult" style="margin-top:12px;color:#aaa;font-size:.9rem;"></div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -301,6 +315,29 @@ async function submitRequest(title, type, extId, poster) {
     if (res.ok) showToast('Request submitted for ' + title);
     else showToast(data.error || 'Failed', true);
   } catch(e) { showToast('Network error', true); }
+}
+async function importTrakt() {
+  const url = document.getElementById('traktUrl').value.trim();
+  const requester = document.getElementById('traktRequester').value.trim();
+  const st = document.getElementById('traktStatus');
+  const resultEl = document.getElementById('traktResult');
+  if (!url) { showToast('Please enter a Trakt URL.', true); return; }
+  if (!requester) { showToast('Please enter your name.', true); return; }
+  st.style.display = 'block'; st.textContent = 'Importing...';
+  resultEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/import/trakt', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, requester})
+    });
+    const data = await res.json();
+    st.style.display = 'none';
+    if (!res.ok) { showToast(data.error || 'Import failed', true); return; }
+    showToast(`Imported ${data.added} items!`);
+    resultEl.innerHTML = `<strong style="color:#27ae60">Added ${data.added} request(s)</strong>${data.skipped > 0 ? `, ${data.skipped} already pending` : ''}.`
+      + (data.titles && data.titles.length ? '<ul style="margin-top:8px;padding-left:20px">' + data.titles.map(t => `<li>${t}</li>`).join('') + '</ul>' : '');
+  } catch(e) { st.style.display = 'none'; showToast('Network error', true); }
 }
 document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 </script>
@@ -382,7 +419,7 @@ ADMIN_TEMPLATE = """<!DOCTYPE html>
   <h1>Admin &ndash; Manage Requests</h1>
   <table>
     <thead><tr>
-      <th>Title</th><th>Type</th><th>Requester</th><th>Date</th><th>Status</th><th>Actions</th>
+      <th>Title</th><th>Type</th><th>Requester</th><th>Date</th><th>Status</th><th>Progress</th><th>Actions</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -393,6 +430,12 @@ ADMIN_TEMPLATE = """<!DOCTYPE html>
   <div id="nomineeList"></div>
 </div>
 <div class="toast" id="toast"></div>
+<style>
+  .eta-bar-wrap { width: 100px; }
+  .eta-bar-track { height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden; }
+  .eta-bar-fill { height: 100%; background: #e5a00d; border-radius: 2px; transition: width 0.5s; }
+  .eta-label { font-size: .7rem; color: #888; margin-top: 3px; }
+</style>
 <script>
 function showToast(msg, error) {
   const t = document.getElementById('toast');
@@ -401,6 +444,37 @@ function showToast(msg, error) {
   t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 3000);
 }
+let etaData = {};
+function formatEta(sec) {
+  if (sec === null || sec === undefined) return '';
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.round(sec / 60) + 'm';
+  return (sec / 3600).toFixed(1) + 'h';
+}
+async function loadEta() {
+  try {
+    const res = await fetch('/api/request/eta');
+    const items = await res.json();
+    if (!Array.isArray(items)) return;
+    etaData = {};
+    items.forEach(i => { etaData[i.id] = i; });
+    updateEtaCells();
+  } catch(e) {}
+}
+function updateEtaCells() {
+  Object.entries(etaData).forEach(([id, info]) => {
+    const cell = document.getElementById('eta-' + id);
+    if (!cell) return;
+    if (info.downloading) {
+      cell.innerHTML = `<div class="eta-bar-wrap">
+        <div class="eta-bar-track"><div class="eta-bar-fill" style="width:${info.pct}%"></div></div>
+        <div class="eta-label">${info.pct}%${info.eta_seconds ? ' &mdash; ' + formatEta(info.eta_seconds) : ''}</div>
+      </div>`;
+    } else {
+      cell.innerHTML = '<span style="color:#555;font-size:.75rem">&mdash;</span>';
+    }
+  });
+}
 async function load() {
   try {
     const [reqRes, voteRes] = await Promise.all([fetch('/api/requests'), fetch('/api/votes')]);
@@ -408,7 +482,7 @@ async function load() {
     const votes = await voteRes.json();
     document.getElementById('loader').style.display = 'none';
     const tbody = document.getElementById('tbody');
-    if (!requests.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No requests yet.</td></tr>'; }
+    if (!requests.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No requests yet.</td></tr>'; }
     else {
       tbody.innerHTML = requests.map(r => `<tr>
         <td>${r.title}</td>
@@ -416,6 +490,7 @@ async function load() {
         <td>${r.requester}</td>
         <td>${new Date(r.timestamp).toLocaleDateString()}</td>
         <td class="status-${r.status}">${r.status}</td>
+        <td id="eta-${r.id}"><span style="color:#555;font-size:.75rem">&mdash;</span></td>
         <td>${r.status === 'pending' ? `
           <button class="btn btn-sm" onclick="action(${r.id},'approve')">Approve</button>
           <button class="btn btn-sm btn-danger" onclick="action(${r.id},'deny')">Deny</button>
@@ -434,6 +509,7 @@ async function load() {
           <td><button class="btn btn-sm btn-danger" onclick="removeNominee(${n.id})">Remove</button></td>
         </tr>`).join('') + '</tbody></table>';
     }
+    loadEta();
   } catch(e) {
     document.getElementById('loader').textContent = 'Failed to load.';
   }
@@ -454,6 +530,7 @@ async function removeNominee(id) {
   } catch(e) { showToast('Network error', true); }
 }
 load();
+setInterval(loadEta, 15000);
 </script>
 </body></html>"""
 
@@ -738,6 +815,103 @@ def create_app():
         votes["raw"] = [v for v in raw if v["nominee_id"] != nom_id]
         _save_db(db)
         return jsonify({"message": "Nominee removed."})
+
+    @app.route("/api/import/trakt", methods=["POST"])
+    def api_import_trakt():
+        data = request.get_json(force=True)
+        url = data.get("url", "").strip()
+        requester = data.get("requester", "").strip()
+        if not url or not requester:
+            return jsonify({"error": "URL and name required"}), 400
+
+        import re
+        import requests as req
+        m = re.search(r'trakt\.tv/users/([^/]+)/lists/([^/?]+)', url)
+        if not m:
+            return jsonify({"error": "Invalid Trakt URL. Use: https://trakt.tv/users/username/lists/listname"}), 400
+
+        user, slug = m.group(1), m.group(2)
+        rss_url = f"https://trakt.tv/users/{user}/lists/{slug}.rss"
+
+        try:
+            r = req.get(rss_url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            if r.status_code != 200:
+                return jsonify({"error": f"Could not fetch Trakt list (status {r.status_code})"}), 400
+
+            titles = re.findall(r'<item>.*?<title><!\[CDATA\[(.*?)\]\]></title>', r.text, re.DOTALL)
+            if not titles:
+                titles = re.findall(r'<item>.*?<title>(.*?)</title>', r.text, re.DOTALL)
+
+            if not titles:
+                return jsonify({"error": "No items found in list"}), 400
+
+            db = _load_db()
+            added = []
+            skipped = []
+            for raw_title in titles[:50]:
+                title = re.sub(r'\s*\(\d{4}\)\s*$', '', raw_title.strip())
+                if not title:
+                    continue
+                if any(r["title"].lower() == title.lower() and r["status"] == "pending" for r in db["requests"]):
+                    skipped.append(title)
+                    continue
+                entry = {
+                    "id": _next_id(db),
+                    "title": title,
+                    "type": "movie",
+                    "requester": requester,
+                    "external_id": 0,
+                    "poster": "",
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "pending",
+                    "source": "trakt_import",
+                }
+                db["requests"].append(entry)
+                added.append(title)
+
+            _save_db(db)
+            return jsonify({"added": len(added), "skipped": len(skipped), "titles": added})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/request/eta", methods=["GET"])
+    def api_request_eta():
+        """Check NZBGet queue for download ETA for pending requests."""
+        import requests as req
+        from config import NZBGET
+        try:
+            r = req.post(f"{NZBGET['url']}/jsonrpc", json={"method": "listgroups", "params": []}, timeout=5)
+            groups = r.json().get("result", [])
+            sr = req.post(f"{NZBGET['url']}/jsonrpc", json={"method": "status", "params": []}, timeout=5)
+            status = sr.json().get("result", {})
+            speed = status.get("DownloadRate", 0)  # bytes/sec
+
+            eta_map = {}
+            for g in groups:
+                name = g.get("NZBName", "").lower()
+                remaining_bytes = g.get("RemainingSizeMB", 0) * 1024 * 1024
+                pct = round(100 * (1 - g.get("RemainingSizeMB", 0) / g.get("FileSizeMB", 1))) if g.get("FileSizeMB") else 0
+                eta_seconds = round(remaining_bytes / speed) if speed > 0 else None
+                eta_map[name] = {"pct": pct, "eta_seconds": eta_seconds, "status": g.get("Status", "?")}
+
+            db = _load_db()
+            result = []
+            for req_item in db.get("requests", []):
+                if req_item["status"] not in ("pending", "approved"):
+                    continue
+                title_lower = req_item["title"].lower()
+                match = next((v for k, v in eta_map.items() if title_lower in k or k in title_lower), None)
+                result.append({
+                    "id": req_item["id"],
+                    "title": req_item["title"],
+                    "downloading": match is not None,
+                    "pct": match["pct"] if match else 0,
+                    "eta_seconds": match["eta_seconds"] if match else None,
+                    "status": req_item["status"],
+                })
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({"error": str(e)})
 
     return app
 

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Plex Search">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+    <title>Watchlist - Plex Search</title>
+    <style>
+        :root {
+            --gold: #e5a00d;
+            --gold-glow: rgba(229,160,13,0.25);
+            --bg: #0a0a0f;
+            --card: #141420;
+            --border: rgba(255,255,255,0.06);
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.4);
+            --blue: #3498db;
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --orange: #f39c12;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        header {
+            background: rgba(10,10,15,0.9);
+            padding: 0 16px;
+            padding-top: max(0px, env(safe-area-inset-top));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            height: calc(60px + max(0px, env(safe-area-inset-top)));
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            box-shadow: 0 2px 10px var(--gold-glow);
+            flex-shrink: 0;
+        }
+        header h1 { color: #fff; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+        .menu-btn {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 5px; cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .menu-btn:active { background: rgba(255,255,255,0.14); }
+        .menu-btn span {
+            display: block; width: 20px; height: 2px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 2px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .menu-btn.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+        .menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+        .menu-btn.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+
+        .dropdown-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 90;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .dropdown-overlay.open { pointer-events: auto; opacity: 1; }
+
+        .dropdown-menu {
+            position: fixed;
+            top: 0; right: 0;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #111118;
+            border-left: 1px solid var(--border);
+            z-index: 91;
+            padding: 0 0 max(20px, env(safe-area-inset-bottom));
+            padding-top: max(0px, env(safe-area-inset-top));
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .dropdown-menu.open { transform: translateX(0); }
+
+        .dropdown-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .dropdown-user { font-size: 1rem; color: #fff; font-weight: 700; }
+        .dropdown-close {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.3rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+
+        .dropdown-menu a {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 20px;
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+        .dropdown-menu a:active { background: rgba(255,255,255,0.06); }
+        .dropdown-menu a.active { color: var(--gold); background: rgba(229,160,13,0.07); }
+        .dropdown-menu a .menu-icon { font-size: 1.25rem; width: 28px; text-align: center; flex-shrink: 0; }
+        .dropdown-menu .menu-divider { height: 1px; background: var(--border); margin: 6px 20px; }
+        .dropdown-menu .logout-link { color: var(--red); margin-top: auto; }
+
+        .page-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 16px 100px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .page-header h2 { color: #fff; font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 14px;
+            margin-top: 4px;
+            letter-spacing: -0.3px;
+        }
+
+        .poster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .poster-card {
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+            animation: cardReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .poster-card:active { transform: scale(0.97); }
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .poster-card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+        }
+        .poster-placeholder {
+            width: 100%; aspect-ratio: 2/3;
+            background: linear-gradient(135deg, #141420, #1a1a2e);
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.1); font-size: 2rem;
+        }
+
+        .card-info { padding: 8px 10px 10px; }
+        .card-info-title {
+            font-size: 0.75rem; font-weight: 600; color: #fff; line-height: 1.25;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .card-info-meta { font-size: 0.6rem; color: var(--text-dim); margin-top: 2px; }
+
+        .btn-remove {
+            margin-top: 8px;
+            padding: 7px 0;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.25s;
+        }
+        .btn-remove:active {
+            background: rgba(231,76,60,0.15);
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .type-badge {
+            position: absolute; top: 8px; left: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 0.55rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; z-index: 5;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .type-badge-movie { background: rgba(52,152,219,0.8); color: #fff; }
+        .type-badge-series { background: rgba(46,204,113,0.8); color: #fff; }
+
+        .notified-badge {
+            position: absolute; top: 8px; right: 8px;
+            padding: 3px 6px; border-radius: 6px;
+            font-size: 0.55rem; font-weight: 700;
+            background: rgba(46,204,113,0.85); color: #fff;
+            backdrop-filter: blur(8px);
+            z-index: 5;
+        }
+
+        .empty-msg {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            padding: 60px 20px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .empty-msg span { font-size: 2rem; display: block; margin-bottom: 12px; }
+
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.15); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast-container {
+            position: fixed; bottom: 16px; left: 16px; right: 16px;
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none; align-items: center;
+        }
+        .toast {
+            padding: 14px 20px; border-radius: 12px; font-size: 0.85rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            pointer-events: auto; text-align: center;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastOut 0.3s 3.7s forwards;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .toast-success { background: rgba(46,204,113,0.9); color: #fff; }
+        .toast-error { background: rgba(231,76,60,0.9); color: #fff; }
+        @keyframes toastIn {
+            from { transform: translateY(20px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes toastOut { to { transform: translateY(-10px); opacity: 0; } }
+
+        @media (min-width: 600px) {
+            header { padding: 0 28px 10px; height: 64px; }
+            .page-content { padding: 28px 28px 80px; }
+            .poster-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 16px; }
+            .poster-card:hover {
+                transform: translateY(-6px) scale(1.02);
+                box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            }
+            .btn-remove:hover { color: var(--red); border-color: var(--red); }
+        }
+        @media (min-width: 1024px) {
+            .poster-grid { grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-logo">
+            <div class="logo-mark">&#9654;</div>
+            <h1>Plex Search</h1>
+        </div>
+        <div class="menu-btn" id="menuBtn" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
+    </header>
+
+    <div class="dropdown-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+    <div class="dropdown-menu" id="menuPanel">
+        <div class="dropdown-header">
+            <span class="dropdown-user">{{ username|capitalize }}</span>
+            <div class="dropdown-close" onclick="toggleMenu()">&times;</div>
+        </div>
+        <a href="/"><span class="menu-icon">&#128269;</span> Search</a>
+        <a href="/downloads"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/watchlist" class="active"><span class="menu-icon">&#128278;</span> Watchlist</a>
+        <a href="/dashboard"><span class="menu-icon">&#128202;</span> Dashboard</a>
+        <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/ondeck"><span class="menu-icon">&#9654;</span> On Deck</a>
+        <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
+        <a href="/arrivals"><span class="menu-icon">&#127381;</span> New Arrivals</a>
+        <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
+        <a href="/filter"><span class="menu-icon">&#128683;</span> Filter</a>
+        <div class="menu-divider"></div>
+        <a href="/logout" class="logout-link"><span class="menu-icon">&#10140;</span> Sign Out</a>
+    </div>
+
+    <div class="page-content">
+        <div class="page-header">
+            <h2>&#128278; Watchlist</h2>
+        </div>
+        <div id="content">
+            <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        const currentUser = "{{ username }}";
+
+        function toggleMenu() {
+            document.getElementById('menuBtn').classList.toggle('open');
+            document.getElementById('menuOverlay').classList.toggle('open');
+            document.getElementById('menuPanel').classList.toggle('open');
+        }
+
+        async function loadWatchlist() {
+            try {
+                const res = await fetch('/api/watchlist');
+                if (!res.ok) throw new Error();
+                const items = await res.json();
+                renderWatchlist(items);
+            } catch {
+                document.getElementById('content').innerHTML =
+                    '<div class="empty-msg">Failed to load watchlist.</div>';
+            }
+        }
+
+        function renderWatchlist(items) {
+            const content = document.getElementById('content');
+
+            if (!items || items.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-msg">
+                        <span>&#128278;</span>
+                        Your watchlist is empty. Search for something and hit the bookmark icon.
+                    </div>`;
+                return;
+            }
+
+            let html = '<div class="poster-grid">';
+            items.forEach((item, idx) => {
+                const posterHtml = item.poster
+                    ? `<img src="${escapeAttr(item.poster)}" alt="${escapeAttr(item.title)}" loading="lazy">`
+                    : `<div class="poster-placeholder">?</div>`;
+                const badgeClass = item.type === 'movie' ? 'type-badge-movie' : 'type-badge-series';
+                const badgeLabel = item.type === 'movie' ? 'Movie' : 'TV';
+                const addedDate = item.added ? new Date(item.added).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+                const notifiedBadge = item.notified ? '<span class="notified-badge">On Plex</span>' : '';
+
+                html += `
+                    <div class="poster-card" style="animation-delay:${idx * 40}ms">
+                        ${posterHtml}
+                        <span class="type-badge ${badgeClass}">${badgeLabel}</span>
+                        ${notifiedBadge}
+                        <div class="card-info">
+                            <div class="card-info-title">${escapeHtml(item.title)}</div>
+                            <div class="card-info-meta">${item.year || ''}${addedDate ? ' &middot; ' + addedDate : ''}</div>
+                            <button class="btn-remove" onclick="removeItem('${escapeAttr(item.title)}', ${idx})">Remove</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        async function removeItem(title, idx) {
+            try {
+                const res = await fetch('/api/watchlist/remove', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title}),
+                });
+                if (!res.ok) throw new Error();
+                showToast('Removed from watchlist', 'success');
+                loadWatchlist();
+            } catch {
+                showToast('Failed to remove', 'error');
+            }
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toasts');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            return (text || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        loadWatchlist();
+    </script>
+</body>
+</html>
