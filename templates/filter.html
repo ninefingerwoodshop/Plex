@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Content Filter - Plex</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #141414;
+            color: #e0e0e0;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        header {
+            background: rgba(20,20,20,0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        header h1 { color: #e5a00d; font-size: 1.2rem; letter-spacing: -0.5px; }
+        nav { display: flex; align-items: center; gap: 14px; }
+        nav a { color: #999; text-decoration: none; font-size: 0.85rem; }
+        nav a.active { color: #e5a00d; font-weight: 600; }
+        nav a.logout { color: #888; font-weight: 400; }
+
+        .page-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 16px 80px;
+        }
+
+        /* Controls bar */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .user-select, .type-select {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+        }
+        .user-select:focus, .type-select:focus { border-color: #e5a00d; }
+        .user-select option, .type-select option { background: #1a1a1a; color: #e0e0e0; }
+
+        .search-box {
+            flex: 1;
+            min-width: 180px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .search-box:focus { border-color: #e5a00d; }
+        .search-box::placeholder { color: #666; }
+
+        .filter-toggle {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #999;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-toggle:hover { border-color: #e5a00d; color: #e5a00d; }
+        .filter-toggle.active { background: #e5a00d22; border-color: #e5a00d; color: #e5a00d; }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .stats-bar span { display: inline-flex; align-items: center; gap: 4px; }
+        .stats-bar .hidden-count { color: #e74c3c; }
+        .stats-bar .visible-count { color: #27ae60; }
+
+        /* Setup banner */
+        .setup-banner {
+            background: #1a1a2e;
+            border: 1px solid #2d2d5e;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #aaa;
+        }
+        .setup-banner strong { color: #e5a00d; }
+        .setup-banner .step { color: #e0e0e0; }
+        .setup-banner-toggle {
+            background: none;
+            border: none;
+            color: #e5a00d;
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0;
+            text-decoration: underline;
+        }
+        .setup-details { display: none; margin-top: 10px; }
+        .setup-details.open { display: block; }
+
+        /* Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .content-card {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #1a1a1a;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .content-card:hover { border-color: #444; transform: translateY(-2px); }
+        .content-card.hidden-item { border-color: #e74c3c55; opacity: 0.5; }
+        .content-card.hidden-item:hover { opacity: 0.8; }
+
+        .card-poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+            background: #222;
+        }
+        .card-poster.no-img {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #444;
+        }
+
+        .card-info {
+            padding: 8px 10px;
+        }
+        .card-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-year {
+            font-size: 0.7rem;
+            color: #888;
+        }
+
+        .card-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .card-badge.visible {
+            background: rgba(39, 174, 96, 0.9);
+            color: #fff;
+        }
+        .card-badge.hidden {
+            background: rgba(231, 76, 60, 0.9);
+            color: #fff;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .loading .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #333;
+            border-top-color: #e5a00d;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            z-index: 200;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.hidden-toast { border-color: #e74c3c; color: #e74c3c; }
+        .toast.visible-toast { border-color: #27ae60; color: #27ae60; }
+
+        @media (max-width: 600px) {
+            .content-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; }
+            .controls { gap: 8px; }
+            .card-info { padding: 6px 8px; }
+            .card-title { font-size: 0.72rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Content Filter</h1>
+        <nav>
+            <a href="/">Search</a>
+            <a href="/downloads">Downloads</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/arrivals">New</a>
+            <a href="/seasonal">Seasonal</a>
+            <a href="/filter" class="active">Filter</a>
+            <a href="/logout" class="logout">Logout</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+        <div class="setup-banner">
+            <strong>How it works:</strong> Select a user, then click shows/movies to hide them. This adds a <code>hide-username</code> label in Plex.
+            <button class="setup-banner-toggle" onclick="toggleSetup()">Setup instructions</button>
+            <div class="setup-details" id="setupDetails">
+                <br>
+                <span class="step"><strong>Step 1:</strong> Make hidden content disappear from a user's Plex view:</span><br>
+                1. Open <strong>Plex Settings</strong> > <strong>Manage Library Access</strong> (or <strong>Users & Sharing</strong>)<br>
+                2. Click the user you want to configure<br>
+                3. Under <strong>Restrictions</strong>, find <strong>Exclude items with labels</strong><br>
+                4. Add the label <strong>hide-username</strong> (e.g., <code>hide-gibbens</code>)<br>
+                5. Save. That user will no longer see any content with that label.<br><br>
+                <span class="step"><strong>Step 2 (optional):</strong> Add "Hide from..." to the Plex right-click menu:</span><br>
+                1. Install <a href="https://www.tampermonkey.net/" target="_blank" style="color:#e5a00d">Tampermonkey</a> browser extension<br>
+                2. Click the Tampermonkey icon > "Create a new script"<br>
+                3. Paste the contents from <a href="/filter/userscript" target="_blank" style="color:#e5a00d">/filter/userscript</a><br>
+                4. Save. Now right-click any show/movie in Plex to see "Hide from..." options.
+            </div>
+        </div>
+
+        <div class="controls">
+            <select class="user-select" id="userSelect">
+                <option value="">-- Select User --</option>
+            </select>
+            <select class="type-select" id="typeSelect">
+                <option value="shows">TV Shows</option>
+                <option value="movies">Movies</option>
+            </select>
+            <input class="search-box" id="searchBox" type="text" placeholder="Search titles...">
+            <button class="filter-toggle" id="showHiddenOnly" onclick="toggleFilterView()">Show hidden only</button>
+        </div>
+
+        <div class="stats-bar" id="statsBar">
+            <span class="visible-count" id="visibleCount"></span>
+            <span class="hidden-count" id="hiddenCount"></span>
+        </div>
+
+        <div id="contentArea">
+            <div class="empty-state">Select a user to manage their hidden content</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let allItems = [];
+        let currentUser = '';
+        let currentType = 'shows';
+        let filterHiddenOnly = false;
+
+        const userSelect = document.getElementById('userSelect');
+        const typeSelect = document.getElementById('typeSelect');
+        const searchBox = document.getElementById('searchBox');
+        const contentArea = document.getElementById('contentArea');
+        const toast = document.getElementById('toast');
+
+        // Load users
+        fetch('/api/filter/users')
+            .then(r => r.json())
+            .then(users => {
+                users.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.name;
+                    opt.textContent = u.name;
+                    userSelect.appendChild(opt);
+                });
+            });
+
+        userSelect.addEventListener('change', () => {
+            currentUser = userSelect.value;
+            if (currentUser) loadContent();
+        });
+
+        typeSelect.addEventListener('change', () => {
+            currentType = typeSelect.value;
+            if (currentUser) loadContent();
+        });
+
+        searchBox.addEventListener('input', renderGrid);
+
+        function toggleSetup() {
+            document.getElementById('setupDetails').classList.toggle('open');
+        }
+
+        function toggleFilterView() {
+            filterHiddenOnly = !filterHiddenOnly;
+            document.getElementById('showHiddenOnly').classList.toggle('active', filterHiddenOnly);
+            renderGrid();
+        }
+
+        function loadContent() {
+            contentArea.innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+            const endpoint = currentType === 'shows' ? '/api/filter/shows' : '/api/filter/movies';
+            fetch(`${endpoint}?username=${encodeURIComponent(currentUser)}`)
+                .then(r => r.json())
+                .then(items => {
+                    allItems = items;
+                    renderGrid();
+                })
+                .catch(() => {
+                    contentArea.innerHTML = '<div class="empty-state">Failed to load content</div>';
+                });
+        }
+
+        function renderGrid() {
+            const query = searchBox.value.toLowerCase();
+            let filtered = allItems;
+
+            if (query) {
+                filtered = filtered.filter(i => i.title.toLowerCase().includes(query));
+            }
+            if (filterHiddenOnly) {
+                filtered = filtered.filter(i => i.hidden);
+            }
+
+            const totalHidden = allItems.filter(i => i.hidden).length;
+            const totalVisible = allItems.length - totalHidden;
+            document.getElementById('visibleCount').textContent = `${totalVisible} visible`;
+            document.getElementById('hiddenCount').textContent = `${totalHidden} hidden`;
+
+            if (!filtered.length) {
+                contentArea.innerHTML = '<div class="empty-state">No matching content</div>';
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'content-grid';
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'content-card' + (item.hidden ? ' hidden-item' : '');
+                card.onclick = () => toggleItem(item, card);
+
+                let posterHtml;
+                if (item.thumb) {
+                    posterHtml = `<img class="card-poster" src="${item.thumb}" alt="${item.title}" loading="lazy">`;
+                } else {
+                    posterHtml = `<div class="card-poster no-img">?</div>`;
+                }
+
+                const badgeClass = item.hidden ? 'hidden' : 'visible';
+                const badgeIcon = item.hidden ? 'X' : '';
+
+                card.innerHTML = `
+                    ${posterHtml}
+                    ${item.hidden ? `<div class="card-badge hidden">X</div>` : ''}
+                    <div class="card-info">
+                        <div class="card-title" title="${item.title}">${item.title}</div>
+                        <div class="card-year">${item.year || ''}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            contentArea.innerHTML = '';
+            contentArea.appendChild(grid);
+        }
+
+        function toggleItem(item, card) {
+            if (!currentUser) return;
+            const mediaType = currentType === 'shows' ? 'show' : 'movie';
+
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.3';
+
+            fetch('/api/filter/toggle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: currentUser,
+                    ratingKey: item.ratingKey,
+                    mediaType: mediaType,
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showToast('Error: ' + data.error, 'hidden-toast');
+                    return;
+                }
+                item.hidden = data.hidden;
+                card.style.pointerEvents = '';
+                card.style.opacity = '';
+                renderGrid();
+                showToast(
+                    data.hidden ? `Hidden "${item.title}" from ${currentUser}` : `"${item.title}" now visible for ${currentUser}`,
+                    data.hidden ? 'hidden-toast' : 'visible-toast'
+                );
+            })
+            .catch(() => {
+                card.style.pointerEvents = '';
+                card.style.opacity = '';
+                showToast('Failed to update', 'hidden-toast');
+            });
+        }
+
+        function showToast(msg, cls) {
+            toast.textContent = msg;
+            toast.className = 'toast ' + cls + ' show';
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>

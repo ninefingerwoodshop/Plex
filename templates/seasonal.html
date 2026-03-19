@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Seasonal Collections - Plex</title>
+    <style>
+        :root {
+            --gold: #e5a00d;
+            --gold-glow: rgba(229,160,13,0.25);
+            --bg: #141414;
+            --card: #1a1a1a;
+            --card-hover: #222;
+            --border: rgba(255,255,255,0.06);
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.4);
+            --blue: #3498db;
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --orange: #e67e22;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        header {
+            background: rgba(20,20,20,0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px var(--gold-glow);
+        }
+        header h1 { color: var(--gold); font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; }
+        nav { display: flex; align-items: center; gap: 14px; }
+        nav a { color: #999; text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
+        nav a.active { color: var(--gold); font-weight: 600; }
+        nav a:hover { color: #fff; }
+
+        .page-content { max-width: 1400px; margin: 0 auto; padding: 20px 16px 100px; }
+
+        .page-header { margin-bottom: 24px; animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .page-header h2 { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+        .page-header p { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Season Cards */
+        .seasons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            margin-bottom: 32px;
+            animation: fadeUp 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .season-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .season-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+        .season-card.active { border-color: var(--gold); box-shadow: 0 4px 20px var(--gold-glow); }
+        .season-card.inactive { opacity: 0.45; }
+        .season-card.inactive:hover { opacity: 0.7; }
+
+        .season-status {
+            position: absolute;
+            top: 12px; right: 12px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .season-status.live {
+            background: rgba(46,204,113,0.15);
+            color: var(--green);
+            border: 1px solid rgba(46,204,113,0.3);
+        }
+        .season-status.upcoming {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+
+        .season-icon { font-size: 1.8rem; margin-bottom: 8px; }
+        .season-name { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .season-desc { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+        .season-months {
+            margin-top: 10px;
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .month-pill {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .month-pill.current {
+            background: rgba(229,160,13,0.12);
+            color: var(--gold);
+            border-color: rgba(229,160,13,0.25);
+        }
+
+        /* Action bar */
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            animation: fadeUp 0.5s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .btn {
+            padding: 9px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-gold {
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            color: var(--bg);
+            box-shadow: 0 2px 12px var(--gold-glow);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { border-color: rgba(255,255,255,0.15); color: #fff; }
+        .btn-red {
+            background: rgba(231,76,60,0.15);
+            color: var(--red);
+            border: 1px solid rgba(231,76,60,0.3);
+        }
+
+        .count-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(229,160,13,0.12);
+            color: var(--gold);
+        }
+
+        /* Movie section */
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; margin-top: 8px;
+        }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; color: #fff;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+        }
+
+        .poster-card {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+            animation: cardReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .poster-card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+        }
+        .poster-placeholder {
+            width: 100%;
+            aspect-ratio: 2/3;
+            background: linear-gradient(135deg, #1a1a1a, #222);
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.15); font-size: 0.7rem; padding: 8px;
+            text-align: center;
+        }
+        .card-bottom { padding: 8px 10px 10px; }
+        .card-bottom-title {
+            font-size: 0.78rem; font-weight: 600; color: #fff;
+            line-height: 1.25;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .card-bottom-meta {
+            font-size: 0.65rem; color: var(--text-dim);
+            margin-top: 3px; display: flex; align-items: center; gap: 6px;
+        }
+
+        .rating-badge {
+            position: absolute; top: 8px; right: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 0.6rem; font-weight: 700; z-index: 5;
+            background: rgba(0,0,0,0.7); color: var(--gold);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Loading */
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+        }
+        .skeleton-card { border-radius: 10px; overflow: hidden; background: var(--card); }
+        .skeleton-poster {
+            aspect-ratio: 2/3;
+            background: linear-gradient(110deg, var(--card) 30%, #222 50%, var(--card) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        .skeleton-text { padding: 10px; }
+        .skeleton-line {
+            height: 10px; border-radius: 5px;
+            background: linear-gradient(110deg, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+            margin-bottom: 6px;
+        }
+        .skeleton-line:last-child { width: 60%; margin-bottom: 0; }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        .status-msg {
+            text-align: center; color: var(--text-dim);
+            padding: 50px 0; font-size: 0.9rem;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 16px; left: 16px; right: 16px;
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none; align-items: center;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.8rem; font-weight: 600;
+            pointer-events: auto;
+            animation: toastIn 0.4s cubic-bezier(0.16,1,0.3,1);
+            backdrop-filter: blur(20px);
+        }
+        .toast-success { background: rgba(46,204,113,0.9); color: #fff; }
+        .toast-error { background: rgba(231,76,60,0.9); color: #fff; }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 600px) {
+            .seasons-grid { grid-template-columns: 1fr; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+            nav { gap: 10px; }
+            nav a { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-logo">
+            <div class="logo-mark">S</div>
+            <h1>Seasonal</h1>
+        </div>
+        <nav>
+            <a href="/">Search</a>
+            <a href="/recommendations">For You</a>
+            <a href="/arrivals">New</a>
+            <a href="/seasonal" class="active">Seasonal</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/logout">{{ username }}</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+        <div class="page-header">
+            <h2 id="pageTitle">Seasonal Collections</h2>
+            <p id="pageSubtitle">Auto-curated collections that change with the calendar</p>
+        </div>
+
+        <!-- Season Cards -->
+        <div class="seasons-grid" id="seasonsGrid"></div>
+
+        <!-- Actions -->
+        <div class="action-bar" id="actionBar" style="display:none;">
+            <button class="btn btn-gold" onclick="buildCollections()">Build Active Collections</button>
+            <button class="btn btn-outline" onclick="cleanExpired()">Clean Expired</button>
+            <span class="count-badge" id="activeCount"></span>
+        </div>
+
+        <!-- Active Season Movies -->
+        <div id="movieSections"></div>
+
+        <!-- Loading -->
+        <div id="loading">
+            <div class="skeleton-grid">
+                <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    function toast(msg, type='success') {
+        const c = document.getElementById('toasts');
+        const t = document.createElement('div');
+        t.className = 'toast toast-' + type;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
+
+    async function loadSeasonal() {
+        try {
+            const r = await fetch('/api/seasonal/summary');
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+
+            document.getElementById('loading').style.display = 'none';
+
+            // Render season cards
+            const grid = document.getElementById('seasonsGrid');
+            grid.innerHTML = '';
+            const currentMonth = new Date().getMonth() + 1;
+
+            data.seasons.forEach(s => {
+                const isActive = s.active;
+                const activeData = data.active[s.key];
+                const count = activeData ? activeData.count : 0;
+
+                const card = document.createElement('div');
+                card.className = 'season-card ' + (isActive ? 'active' : 'inactive');
+                card.onclick = () => { if (isActive) previewSeason(s.key, s.name); };
+
+                const monthPills = s.months.map(m =>
+                    `<span class="month-pill ${m === currentMonth ? 'current' : ''}">${MONTH_NAMES[m-1]}</span>`
+                ).join('');
+
+                card.innerHTML = `
+                    <span class="season-status ${isActive ? 'live' : 'upcoming'}">${isActive ? 'Live' : 'Upcoming'}</span>
+                    <div class="season-name">${s.name}</div>
+                    <div class="season-desc">${s.description}</div>
+                    <div class="season-months">${monthPills}</div>
+                    ${isActive && count ? `<div style="margin-top:10px;font-size:0.75rem;color:var(--gold);font-weight:600;">${count} movies matched</div>` : ''}
+                `;
+                grid.appendChild(card);
+            });
+
+            // Show action bar if there are active seasons
+            const activeKeys = Object.keys(data.active);
+            if (activeKeys.length > 0) {
+                document.getElementById('actionBar').style.display = 'flex';
+                document.getElementById('activeCount').textContent = activeKeys.length + ' active';
+            }
+
+            // Render active season movies
+            const sections = document.getElementById('movieSections');
+            sections.innerHTML = '';
+            for (const [key, season] of Object.entries(data.active)) {
+                if (!season.top_picks || !season.top_picks.length) continue;
+
+                const section = document.createElement('div');
+                section.style.marginBottom = '36px';
+                section.style.animation = 'fadeUp 0.5s 0.2s cubic-bezier(0.16,1,0.3,1) both';
+
+                let header = `<div class="section-header">
+                    <div class="section-title">${season.name} <span class="count-badge">${season.count}</span></div>
+                </div>`;
+
+                let cards = '';
+                season.top_picks.forEach((m, i) => {
+                    const thumb = m.thumb ? `/api/seasonal/thumb?key=${m.ratingKey}` : '';
+                    const genres = (m.genres || []).slice(0, 2).join(', ');
+                    const ratingBadge = m.rating ? `<div class="rating-badge">${m.rating.toFixed(1)}</div>` : '';
+
+                    cards += `<div class="poster-card" style="animation-delay:${i*0.03}s">
+                        ${ratingBadge}
+                        ${thumb ? `<img src="${thumb}" alt="${m.title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=poster-placeholder>${m.title}</div>'+this.parentElement.querySelector('.card-bottom').outerHTML">` : `<div class="poster-placeholder">${m.title}</div>`}
+                        <div class="card-bottom">
+                            <div class="card-bottom-title">${m.title}</div>
+                            <div class="card-bottom-meta"><span>${m.year}</span><span>${genres}</span></div>
+                        </div>
+                    </div>`;
+                });
+
+                section.innerHTML = header + `<div class="grid">${cards}</div>`;
+                sections.appendChild(section);
+            }
+
+            // Update subtitle with current month
+            document.getElementById('pageSubtitle').textContent =
+                `${data.current_month} - ${activeKeys.length} active seasonal collection${activeKeys.length !== 1 ? 's' : ''}`;
+
+        } catch (e) {
+            document.getElementById('loading').innerHTML = `<div class="status-msg">Error loading seasonal data: ${e.message}</div>`;
+        }
+    }
+
+    async function previewSeason(key, name) {
+        try {
+            const r = await fetch(`/api/seasonal/preview?season=${key}`);
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+
+            const seasonData = data[key];
+            if (!seasonData) return;
+
+            // Scroll to movie sections and show
+            const sections = document.getElementById('movieSections');
+            sections.scrollIntoView({ behavior: 'smooth' });
+        } catch (e) {
+            toast('Error: ' + e.message, 'error');
+        }
+    }
+
+    async function buildCollections() {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Building...';
+        try {
+            const r = await fetch('/api/seasonal/build', { method: 'POST' });
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+            toast(`Built ${data.built} seasonal collection(s) in Plex!`);
+        } catch (e) {
+            toast('Error: ' + e.message, 'error');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Build Active Collections';
+    }
+
+    async function cleanExpired() {
+        try {
+            const r = await fetch('/api/seasonal/clean', { method: 'POST' });
+            const data = await r.json();
+            if (data.error) throw new Error(data.error);
+            const count = data.removed ? data.removed.length : 0;
+            toast(count > 0 ? `Removed ${count} expired collection(s)` : 'No expired collections to clean');
+        } catch (e) {
+            toast('Error: ' + e.message, 'error');
+        }
+    }
+
+    loadSeasonal();
+    </script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Plex Search">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+    <title>Plex Search</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        /* Animated background */
+        .bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+        }
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: float 12s ease-in-out infinite;
+        }
+        .bg-orb:nth-child(1) {
+            width: 300px; height: 300px;
+            background: #e5a00d;
+            top: -10%; left: -5%;
+            animation-delay: 0s;
+        }
+        .bg-orb:nth-child(2) {
+            width: 250px; height: 250px;
+            background: #3498db;
+            bottom: -10%; right: -5%;
+            animation-delay: -4s;
+            animation-duration: 15s;
+        }
+        .bg-orb:nth-child(3) {
+            width: 200px; height: 200px;
+            background: #8e44ad;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -8s;
+            animation-duration: 18s;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -40px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.95); }
+            75% { transform: translate(40px, 30px) scale(1.05); }
+        }
+
+        .login-box {
+            position: relative;
+            z-index: 1;
+            background: rgba(20, 20, 35, 0.6);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 380px;
+            margin: 0 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .logo-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #e5a00d, #f39c12);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 20px rgba(229,160,13,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 32px;
+            font-size: 0.85rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            margin-bottom: 18px;
+            outline: none;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        input:focus {
+            border-color: rgba(229,160,13,0.5);
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 3px rgba(229,160,13,0.1);
+        }
+        input::placeholder { color: rgba(255,255,255,0.2); }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #e5a00d, #d4940c);
+            color: #0a0a0f;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            letter-spacing: 0.3px;
+        }
+        button[type="submit"]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(229,160,13,0.35);
+        }
+        button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        .error {
+            background: rgba(231,76,60,0.15);
+            border: 1px solid rgba(231,76,60,0.3);
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            text-align: center;
+            font-size: 0.85rem;
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg">
+        <div class="bg-orb"></div>
+        <div class="bg-orb"></div>
+        <div class="bg-orb"></div>
+    </div>
+
+    <form class="login-box" method="POST">
+        <div class="logo">
+            <div class="logo-icon">&#9654;</div>
+        </div>
+        <h1>Plex Search</h1>
+        <p class="subtitle">Sign in to search & download</p>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="Enter username" autocomplete="username" required autofocus>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
+        <button type="submit">Sign In</button>
+    </form>
+</body>
+</html>

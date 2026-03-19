@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>For You - Plex Search</title>
+    <style>
+        :root {
+            --gold: #e5a00d;
+            --gold-glow: rgba(229,160,13,0.25);
+            --bg: #141414;
+            --card: #1a1a1a;
+            --card-hover: #222;
+            --border: rgba(255,255,255,0.06);
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.4);
+            --blue: #3498db;
+            --green: #2ecc71;
+            --red: #e74c3c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* Header */
+        header {
+            background: rgba(20,20,20,0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px var(--gold-glow);
+        }
+        header h1 { color: var(--gold); font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; }
+        nav { display: flex; align-items: center; gap: 14px; }
+        nav a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        nav a.active { color: var(--gold); font-weight: 600; }
+        nav a.logout { color: #888; font-weight: 400; }
+        nav a:hover { color: #fff; }
+
+        /* Page */
+        .page-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 16px 100px;
+        }
+
+        /* Welcome */
+        .page-header {
+            margin-bottom: 24px;
+            animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .page-header h2 {
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .page-header p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Watch Profile */
+        .profile-section {
+            background: var(--card);
+            border: 1px solid #252525;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 28px;
+            animation: fadeUp 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .profile-section-title {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .profile-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .profile-row:last-child { margin-bottom: 0; }
+        .profile-label {
+            font-size: 0.75rem;
+            color: #888;
+            font-weight: 500;
+            min-width: 65px;
+        }
+        .pill {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: rgba(229,160,13,0.12);
+            color: var(--gold);
+            border: 1px solid rgba(229,160,13,0.2);
+            transition: background 0.2s;
+        }
+        .pill-blue {
+            background: rgba(52,152,219,0.12);
+            color: var(--blue);
+            border-color: rgba(52,152,219,0.2);
+        }
+        .pill-green {
+            background: rgba(46,204,113,0.12);
+            color: var(--green);
+            border-color: rgba(46,204,113,0.2);
+        }
+        .profile-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            padding: 8px 0;
+        }
+
+        /* Filter/Sort Bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            animation: fadeUp 0.5s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .filter-btn {
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-weight: 500;
+        }
+        .filter-btn.active {
+            background: var(--gold);
+            color: var(--bg);
+            border-color: var(--gold);
+            font-weight: 600;
+            box-shadow: 0 2px 12px var(--gold-glow);
+        }
+        .filter-btn:active:not(.active) { background: rgba(255,255,255,0.05); }
+        .filter-divider {
+            width: 1px;
+            height: 20px;
+            background: #333;
+            margin: 0 4px;
+        }
+        .sort-select {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 500;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            padding-right: 28px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+        .sort-select option { background: #1a1a1a; color: #e0e0e0; }
+
+        /* Section Header */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            margin-top: 8px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+        }
+
+        /* Poster Card */
+        .poster-card {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+            animation: cardReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .poster-card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .poster-placeholder {
+            width: 100%;
+            aspect-ratio: 2/3;
+            background: linear-gradient(135deg, #1a1a1a, #222);
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.1); font-size: 2rem;
+        }
+        .card-bottom {
+            padding: 8px 10px 10px;
+        }
+        .card-bottom-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-bottom-meta {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .type-badge {
+            position: absolute; top: 8px; left: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 0.55rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; z-index: 5;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .type-badge-movie { background: rgba(52,152,219,0.8); color: #fff; }
+        .type-badge-series { background: rgba(46,204,113,0.8); color: #fff; }
+
+        .match-badge {
+            position: absolute; top: 8px; right: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 0.6rem; font-weight: 700; z-index: 5;
+            background: rgba(229,160,13,0.85);
+            color: #000;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .reason-tag {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 500;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .btn-add {
+            margin-top: 8px;
+            padding: 9px 0;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            color: var(--bg);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+        }
+        .btn-add:active { transform: scale(0.95); }
+        .btn-add:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-add.success {
+            background: linear-gradient(135deg, var(--green), #27ae60);
+            color: #fff;
+            animation: successPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes successPop {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Trending Row */
+        .trending-section {
+            margin-top: 36px;
+            animation: fadeUp 0.5s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .scroll-row {
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #333 transparent;
+        }
+        .scroll-row::-webkit-scrollbar { height: 4px; }
+        .scroll-row::-webkit-scrollbar-track { background: transparent; }
+        .scroll-row::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        .scroll-row .poster-card {
+            min-width: 140px;
+            max-width: 140px;
+            flex-shrink: 0;
+            scroll-snap-align: start;
+        }
+
+        /* Skeleton */
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+        }
+        .skeleton-card {
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--card);
+        }
+        .skeleton-poster {
+            aspect-ratio: 2/3;
+            background: linear-gradient(110deg, var(--card) 30%, #222 50%, var(--card) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        .skeleton-text { padding: 10px; }
+        .skeleton-line {
+            height: 10px; border-radius: 5px;
+            background: linear-gradient(110deg, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+            margin-bottom: 6px;
+        }
+        .skeleton-line:last-child { width: 60%; margin-bottom: 0; }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        .skeleton-row {
+            display: flex;
+            gap: 14px;
+            overflow: hidden;
+        }
+        .skeleton-row .skeleton-card {
+            min-width: 140px;
+            max-width: 140px;
+            flex-shrink: 0;
+        }
+
+        /* Status */
+        .status-msg {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 50px 0;
+            font-size: 0.9rem;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 16px; left: 16px; right: 16px;
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none; align-items: center;
+        }
+        .toast {
+            padding: 14px 20px; border-radius: 12px; font-size: 0.85rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            pointer-events: auto; text-align: center;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastOut 0.3s 3.7s forwards;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .toast-success { background: rgba(46,204,113,0.9); color: #fff; }
+        .toast-error { background: rgba(231,76,60,0.9); color: #fff; }
+        @keyframes toastIn {
+            from { transform: translateY(20px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes toastOut {
+            to { transform: translateY(-10px); opacity: 0; }
+        }
+
+        .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+        }
+        .spinner-dark { border-color: rgba(0,0,0,0.15); border-top-color: var(--bg); }
+        .spinner-large { width: 24px; height: 24px; border-width: 3px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Desktop */
+        @media (min-width: 600px) {
+            header { padding: 14px 28px; }
+            .page-content { padding: 24px 28px 100px; }
+            .grid, .skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+            .poster-card:hover {
+                transform: translateY(-6px) scale(1.02);
+                box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            }
+            .poster-card:hover img { transform: scale(1.05); }
+            .scroll-row .poster-card:hover {
+                transform: translateY(-6px) scale(1.04);
+            }
+        }
+        @media (min-width: 1024px) {
+            .grid, .skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        }
+        @media (max-width: 480px) {
+            nav { gap: 10px; }
+            nav a { font-size: 0.75rem; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+            .scroll-row .poster-card { min-width: 120px; max-width: 120px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-logo">
+            <div class="logo-mark">&#9654;</div>
+            <h1>Plex Search</h1>
+        </div>
+        <nav>
+            <a href="/">Search</a>
+            <a href="/downloads">Downloads</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/analytics">Analytics</a>
+            <a href="/recommendations" class="active">For You</a>
+            <a href="/arrivals">New</a>
+            <a href="/seasonal">Seasonal</a>
+            <a href="/filter">Filter</a>
+            <a href="/logout" class="logout">Sign out</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h2>For You, {{ username|capitalize }}</h2>
+            <p>Personalized picks based on your watch history</p>
+        </div>
+
+        <!-- Watch Profile -->
+        <div class="profile-section" id="profileSection">
+            <div class="profile-section-title">Your Watch Profile</div>
+            <div class="profile-loading" id="profileLoading">
+                <span class="spinner"></span> Loading your profile...
+            </div>
+            <div id="profileContent" style="display:none"></div>
+        </div>
+
+        <!-- Filter/Sort Bar -->
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+            <button class="filter-btn" data-filter="movie" onclick="setFilter('movie', this)">Movies</button>
+            <button class="filter-btn" data-filter="series" onclick="setFilter('series', this)">TV Shows</button>
+            <div class="filter-divider"></div>
+            <select class="sort-select" id="sortSelect" onchange="setSort(this.value)">
+                <option value="match">Best Match</option>
+                <option value="newest">Newest</option>
+                <option value="rating">Rating</option>
+            </select>
+        </div>
+
+        <!-- Recommended For You -->
+        <div class="section-header">
+            <div class="section-title">Recommended For You</div>
+        </div>
+        <div id="recommendedGrid">
+            <div class="status-msg"><span class="spinner spinner-large"></span></div>
+        </div>
+
+        <!-- Trending Now -->
+        <div class="trending-section">
+            <div class="section-header">
+                <div class="section-title">Trending Now</div>
+            </div>
+            <div id="trendingRow">
+                <div class="skeleton-row" id="trendingSkeleton"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        const USERNAME = '{{ username }}';
+        let allRecommendations = [];
+        let activeFilter = 'all';
+        let activeSort = 'match';
+
+        // ---- Profile ----
+        async function loadProfile() {
+            const loading = document.getElementById('profileLoading');
+            const content = document.getElementById('profileContent');
+            try {
+                const res = await fetch(`/api/recommendations/profile?username=${encodeURIComponent(USERNAME)}`);
+                if (!res.ok) throw new Error('Failed to load profile');
+                const data = await res.json();
+
+                let html = '';
+                if (data.genres && data.genres.length) {
+                    html += `<div class="profile-row">
+                        <span class="profile-label">Genres</span>
+                        ${data.genres.map(g => `<span class="pill">${escapeHtml(g)}</span>`).join('')}
+                    </div>`;
+                }
+                if (data.directors && data.directors.length) {
+                    html += `<div class="profile-row">
+                        <span class="profile-label">Directors</span>
+                        ${data.directors.map(d => `<span class="pill pill-blue">${escapeHtml(d)}</span>`).join('')}
+                    </div>`;
+                }
+                if (data.actors && data.actors.length) {
+                    html += `<div class="profile-row">
+                        <span class="profile-label">Actors</span>
+                        ${data.actors.map(a => `<span class="pill pill-green">${escapeHtml(a)}</span>`).join('')}
+                    </div>`;
+                }
+
+                if (!html) {
+                    html = '<div style="color:var(--text-dim);font-size:0.8rem;">Not enough watch history yet to build your profile.</div>';
+                }
+
+                content.innerHTML = html;
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            } catch (err) {
+                loading.innerHTML = '<span style="color:var(--text-dim);font-size:0.8rem;">Could not load profile.</span>';
+            }
+        }
+
+        // ---- Recommendations ----
+        function showSkeletons(container, count) {
+            let html = '<div class="skeleton-grid">';
+            for (let i = 0; i < count; i++) {
+                html += `<div class="skeleton-card" style="animation-delay:${i*50}ms">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-text">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+                </div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function showTrendingSkeletons() {
+            const el = document.getElementById('trendingSkeleton');
+            let html = '';
+            for (let i = 0; i < 8; i++) {
+                html += `<div class="skeleton-card" style="animation-delay:${i*50}ms">
+                    <div class="skeleton-poster"></div>
+                    <div class="skeleton-text">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+                </div>`;
+            }
+            el.innerHTML = html;
+        }
+
+        async function loadRecommendations() {
+            const container = document.getElementById('recommendedGrid');
+            showSkeletons(container, 12);
+
+            try {
+                const res = await fetch(`/api/recommendations/picks?username=${encodeURIComponent(USERNAME)}`);
+                if (!res.ok) throw new Error('Failed');
+                allRecommendations = await res.json();
+                renderRecommendations();
+            } catch (err) {
+                container.innerHTML = '<div class="status-msg">Could not load recommendations. Try again later.</div>';
+            }
+        }
+
+        function getFiltered() {
+            let items = activeFilter === 'all'
+                ? allRecommendations
+                : allRecommendations.filter(r => r.type === activeFilter);
+
+            if (activeSort === 'match') {
+                items.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+            } else if (activeSort === 'newest') {
+                items.sort((a, b) => (b.year || 0) - (a.year || 0));
+            } else if (activeSort === 'rating') {
+                items.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            }
+            return items;
+        }
+
+        function renderRecommendations() {
+            const container = document.getElementById('recommendedGrid');
+            const items = getFiltered();
+
+            if (items.length === 0) {
+                container.innerHTML = allRecommendations.length === 0
+                    ? '<div class="status-msg">No recommendations yet. Watch more content to get personalized picks!</div>'
+                    : '<div class="status-msg">No results for this filter.</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="grid">' + items.map((item, i) => {
+                const idx = allRecommendations.indexOf(item);
+                return renderCard(item, idx, i);
+            }).join('') + '</div>';
+        }
+
+        function renderCard(item, dataIdx, animIdx) {
+            const posterHtml = item.poster
+                ? `<img src="${escapeAttr(item.poster)}" alt="${escapeAttr(item.title)}" loading="lazy">`
+                : `<div class="poster-placeholder">?</div>`;
+            const badgeClass = item.type === 'movie' ? 'type-badge-movie' : 'type-badge-series';
+            const badgeLabel = item.type === 'movie' ? 'Movie' : 'TV';
+            const matchHtml = item.match_score
+                ? `<span class="match-badge">${item.match_score}% Match</span>`
+                : '';
+            const reasonHtml = item.reason
+                ? `<div class="reason-tag" title="${escapeAttr(item.reason)}">${escapeHtml(item.reason)}</div>`
+                : '';
+
+            return `
+                <div class="poster-card" style="animation-delay:${animIdx * 40}ms">
+                    ${posterHtml}
+                    <span class="type-badge ${badgeClass}">${badgeLabel}</span>
+                    ${matchHtml}
+                    <div class="card-bottom">
+                        <div class="card-bottom-title">${escapeHtml(item.title)}</div>
+                        <div class="card-bottom-meta">
+                            <span>${item.year || ''}</span>
+                        </div>
+                        ${reasonHtml}
+                        <button class="btn-add" id="btn-rec-${dataIdx}" onclick="addToLibrary(${dataIdx}, 'rec')">
+                            Add to Library
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setFilter(filter, btn) {
+            activeFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderRecommendations();
+        }
+
+        function setSort(sort) {
+            activeSort = sort;
+            renderRecommendations();
+        }
+
+        // ---- Trending ----
+        let trendingItems = [];
+
+        async function loadTrending() {
+            showTrendingSkeletons();
+            const container = document.getElementById('trendingRow');
+            try {
+                const res = await fetch('/api/recommendations/trending');
+                if (!res.ok) throw new Error('Failed');
+                trendingItems = await res.json();
+                renderTrending();
+            } catch (err) {
+                container.innerHTML = '<div class="status-msg" style="padding:20px 0;">Could not load trending content.</div>';
+            }
+        }
+
+        function renderTrending() {
+            const container = document.getElementById('trendingRow');
+            if (trendingItems.length === 0) {
+                container.innerHTML = '<div class="status-msg" style="padding:20px 0;">No trending items available.</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="scroll-row">' + trendingItems.map((item, i) => {
+                const posterHtml = item.poster
+                    ? `<img src="${escapeAttr(item.poster)}" alt="${escapeAttr(item.title)}" loading="lazy">`
+                    : `<div class="poster-placeholder">?</div>`;
+                const badgeClass = item.type === 'movie' ? 'type-badge-movie' : 'type-badge-series';
+                const badgeLabel = item.type === 'movie' ? 'Movie' : 'TV';
+
+                return `
+                    <div class="poster-card" style="animation-delay:${i * 40}ms">
+                        ${posterHtml}
+                        <span class="type-badge ${badgeClass}">${badgeLabel}</span>
+                        <div class="card-bottom">
+                            <div class="card-bottom-title">${escapeHtml(item.title)}</div>
+                            <div class="card-bottom-meta">${item.year || ''}</div>
+                            <button class="btn-add" id="btn-trend-${i}" onclick="addToLibrary(${i}, 'trend')">
+                                Add to Library
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+        }
+
+        // ---- Add to Library ----
+        async function addToLibrary(idx, source) {
+            const item = source === 'rec' ? allRecommendations[idx] : trendingItems[idx];
+            const btn = document.getElementById(`btn-${source}-${idx}`);
+            if (!item || !btn) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner spinner-dark"></span>';
+
+            try {
+                const res = await fetch('/api/recommendations/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: item.type,
+                        tmdb_id: item.tmdb_id,
+                        title: item.title,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    btn.innerHTML = 'Added!';
+                    btn.classList.add('success');
+                    showToast(`${escapeHtml(item.title)} added to library`, 'success');
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Add to Library';
+                    showToast(data.message || 'Failed to add', 'error');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = 'Add to Library';
+                showToast('Network error', 'error');
+            }
+        }
+
+        // ---- Toast ----
+        function showToast(message, type) {
+            const container = document.getElementById('toasts');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ---- Utilities ----
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function escapeAttr(text) {
+            return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // ---- Init ----
+        loadProfile();
+        loadRecommendations();
+        loadTrending();
+    </script>
+</body>
+</html>

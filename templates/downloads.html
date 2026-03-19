@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Plex Search">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+    <title>My Downloads - Plex Search</title>
+    <style>
+        :root {
+            --gold: #e5a00d;
+            --gold-glow: rgba(229,160,13,0.25);
+            --bg: #0a0a0f;
+            --card: #141420;
+            --border: rgba(255,255,255,0.06);
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.4);
+            --blue: #3498db;
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --orange: #f39c12;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        header {
+            background: rgba(10,10,15,0.8);
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px var(--gold-glow);
+        }
+        header h1 { color: #fff; font-size: 1.1rem; font-weight: 700; }
+        /* Menu button */
+        .menu-btn {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 4px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .menu-btn:active { background: rgba(255,255,255,0.1); }
+        .menu-btn span {
+            display: block; width: 16px; height: 1.5px;
+            background: var(--text-dim);
+            border-radius: 1px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .menu-btn.open span:nth-child(1) { transform: rotate(45deg) translate(3px, 3px); }
+        .menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+        .menu-btn.open span:nth-child(3) { transform: rotate(-45deg) translate(3px, -3px); }
+
+        .dropdown-overlay {
+            position: fixed; inset: 0; z-index: 90;
+            pointer-events: none; opacity: 0; transition: opacity 0.25s;
+        }
+        .dropdown-overlay.open { pointer-events: auto; opacity: 1; }
+
+        .dropdown-menu {
+            position: fixed; top: 0; right: 0;
+            width: 260px; max-width: 80vw; height: 100%;
+            background: rgba(14,14,22,0.95);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-left: 1px solid var(--border);
+            z-index: 91; padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            display: flex; flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .dropdown-menu.open { transform: translateX(0); }
+
+        .dropdown-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+        }
+        .dropdown-user { font-size: 0.85rem; color: #fff; font-weight: 600; }
+        .dropdown-close {
+            width: 32px; height: 32px;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-dim); font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        .dropdown-menu a {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 12px; color: var(--text-dim); text-decoration: none;
+            font-size: 0.9rem; font-weight: 500; border-radius: 10px; transition: all 0.2s;
+        }
+        .dropdown-menu a:active { background: rgba(255,255,255,0.06); }
+        .dropdown-menu a.active { color: var(--gold); }
+        .dropdown-menu a .menu-icon { font-size: 1.1rem; width: 24px; text-align: center; }
+        .dropdown-menu .menu-divider { height: 1px; background: var(--border); margin: 8px 0; }
+        .dropdown-menu .logout-link { color: var(--red); margin-top: auto; }
+
+        .page-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 16px 100px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .page-header h2 { color: #fff; font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Live indicator */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(8px);
+        }
+        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #555; transition: all 0.3s; }
+        .live-indicator.connected { color: var(--green); border-color: rgba(46,204,113,0.3); }
+        .live-indicator.connected .live-dot {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+        .live-indicator.connecting { color: var(--gold); border-color: rgba(229,160,13,0.3); }
+        .live-indicator.connecting .live-dot { background: var(--gold); animation: livePulse 1s infinite; }
+        @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 14px;
+            margin-top: 4px;
+            letter-spacing: -0.3px;
+        }
+
+        /* Grid */
+        .poster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .poster-card {
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+            animation: cardReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .poster-card:active { transform: scale(0.97); }
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .poster-card img {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+        }
+        .poster-placeholder {
+            width: 100%; aspect-ratio: 2/3;
+            background: linear-gradient(135deg, #141420, #1a1a2e);
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.1); font-size: 2rem;
+        }
+
+        .card-info { padding: 8px 10px 10px; }
+        .card-info-title {
+            font-size: 0.75rem; font-weight: 600; color: #fff; line-height: 1.25;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .card-info-meta { font-size: 0.6rem; color: var(--text-dim); margin-top: 2px; }
+
+        /* Status */
+        .status-bar { margin-top: 8px; }
+        .progress-track {
+            height: 3px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .progress-fill.downloading {
+            background: linear-gradient(90deg, var(--gold), #f7c948);
+            box-shadow: 0 0 8px var(--gold-glow);
+        }
+        .progress-fill.downloaded { background: linear-gradient(90deg, var(--green), #58d68d); }
+        .progress-fill.on-plex { background: linear-gradient(90deg, var(--blue), #5dade2); }
+        .progress-fill.waiting {
+            background: var(--red);
+            animation: progressPulse 2s ease-in-out infinite;
+        }
+        .progress-fill.partial { background: linear-gradient(90deg, var(--orange), #f5b041); }
+        @keyframes progressPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .status-text {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-dot {
+            width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .status-dot.downloading { background: var(--gold); box-shadow: 0 0 6px var(--gold-glow); }
+        .status-dot.downloaded { background: var(--green); box-shadow: 0 0 6px rgba(46,204,113,0.4); }
+        .status-dot.on-plex { background: var(--blue); box-shadow: 0 0 6px rgba(52,152,219,0.4); }
+        .status-dot.waiting { background: var(--red); animation: progressPulse 2s infinite; }
+        .status-dot.partial { background: var(--orange); }
+        .status-dot.unknown { background: #555; }
+
+        /* Remove button */
+        .btn-remove {
+            margin-top: 8px;
+            padding: 7px 0;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.25s;
+        }
+        .btn-remove:active {
+            background: rgba(231,76,60,0.15);
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .type-badge {
+            position: absolute; top: 8px; left: 8px;
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 0.55rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; z-index: 5;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .type-badge-movie { background: rgba(52,152,219,0.8); color: #fff; }
+        .type-badge-series { background: rgba(46,204,113,0.8); color: #fff; }
+
+        .empty-msg { color: var(--text-dim); font-size: 0.9rem; padding: 50px 0; text-align: center; }
+
+        .spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.15); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 300;
+            display: flex; align-items: center; justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: #1a1a2a;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px 24px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        }
+        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+        .modal-poster {
+            width: 70px; height: 105px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            object-fit: cover;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .modal-title {
+            font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 6px;
+        }
+        .modal-msg {
+            font-size: 0.82rem; color: var(--text-dim); margin-bottom: 24px; line-height: 1.5;
+        }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-btn {
+            flex: 1; padding: 13px; border: none; border-radius: 12px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .modal-btn:active { transform: scale(0.95); }
+        .modal-btn-cancel {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, var(--red), #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(231,76,60,0.3);
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 16px; left: 16px; right: 16px;
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none; align-items: center;
+        }
+        .toast {
+            padding: 14px 20px; border-radius: 12px; font-size: 0.85rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            pointer-events: auto; text-align: center;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1), toastOut 0.3s 3.7s forwards;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .toast-success { background: rgba(46,204,113,0.9); color: #fff; }
+        .toast-error { background: rgba(231,76,60,0.9); color: #fff; }
+        @keyframes toastIn {
+            from { transform: translateY(20px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes toastOut { to { transform: translateY(-10px); opacity: 0; } }
+
+        /* Desktop */
+        @media (min-width: 600px) {
+            header { padding: 14px 28px; }
+            .page-content { padding: 28px 28px 80px; }
+            .poster-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 16px; }
+            .poster-card:hover {
+                transform: translateY(-6px) scale(1.02);
+                box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            }
+            .btn-remove:hover { color: var(--red); border-color: var(--red); }
+        }
+        @media (min-width: 1024px) {
+            .poster-grid { grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-logo">
+            <div class="logo-mark">&#9654;</div>
+            <h1>Plex Search</h1>
+        </div>
+        <div class="menu-btn" id="menuBtn" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
+    </header>
+
+    <div class="dropdown-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+    <div class="dropdown-menu" id="menuPanel">
+        <div class="dropdown-header">
+            <span class="dropdown-user">{{ username|capitalize }}</span>
+            <div class="dropdown-close" onclick="toggleMenu()">&times;</div>
+        </div>
+        <a href="/"><span class="menu-icon">&#128269;</span> Search</a>
+        <a href="/downloads" class="active"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/dashboard"><span class="menu-icon">&#128202;</span> Dashboard</a>
+        <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
+        <a href="/arrivals"><span class="menu-icon">&#127381;</span> New Arrivals</a>
+        <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
+        <a href="/filter"><span class="menu-icon">&#128683;</span> Filter</a>
+        <div class="menu-divider"></div>
+        <a href="/logout" class="logout-link"><span class="menu-icon">&#10140;</span> Sign Out</a>
+    </div>
+
+    <div class="page-content">
+        <div class="page-header">
+            <h2>{{ username|capitalize }}'s Downloads</h2>
+            <div class="live-indicator" id="liveIndicator">
+                <span class="live-dot"></span> Live
+            </div>
+        </div>
+        <div id="content">
+            <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="removeModal">
+        <div class="modal">
+            <img class="modal-poster" id="modalPoster" src="" alt="">
+            <div class="modal-title" id="modalTitle"></div>
+            <div class="modal-msg">Are you sure you want to remove this? The files will be deleted.</div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="modalConfirm">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        const currentUser = "{{ username }}";
+        let allDownloads = {};
+        let statuses = [];
+        let activeUser = currentUser;
+        let eventSource = null;
+
+        function toggleMenu() {
+            document.getElementById('menuBtn').classList.toggle('open');
+            document.getElementById('menuOverlay').classList.toggle('open');
+            document.getElementById('menuPanel').classList.toggle('open');
+        }
+
+        async function loadDownloads() {
+            try {
+                const res = await fetch(`/api/downloads?user=${encodeURIComponent(currentUser)}`);
+                if (!res.ok) throw new Error();
+                const items = await res.json();
+                allDownloads = {};
+                allDownloads[currentUser] = items;
+                connectStream(currentUser);
+            } catch {
+                document.getElementById('content').innerHTML =
+                    '<div class="empty-msg">Failed to load downloads.</div>';
+            }
+        }
+
+        function connectStream(user) {
+            if (eventSource) { eventSource.close(); eventSource = null; }
+
+            const indicator = document.getElementById('liveIndicator');
+            indicator.classList.remove('connected');
+            indicator.classList.add('connecting');
+
+            eventSource = new EventSource(`/api/status/stream?user=${encodeURIComponent(user)}`);
+
+            eventSource.onopen = () => {
+                indicator.classList.remove('connecting');
+                indicator.classList.add('connected');
+            };
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.error) return;
+                    statuses = data;
+                    renderUser(activeUser);
+                    indicator.classList.remove('connecting');
+                    indicator.classList.add('connected');
+                } catch {}
+            };
+
+            eventSource.onerror = () => {
+                indicator.classList.remove('connected');
+                indicator.classList.add('connecting');
+            };
+        }
+
+        function renderUser(user) {
+            const items = allDownloads[user] || [];
+            const content = document.getElementById('content');
+
+            if (items.length === 0) {
+                content.innerHTML = '<div class="empty-msg">No downloads yet. Go search for something!</div>';
+                return;
+            }
+
+            const movies = items.filter(i => i.type === 'movie');
+            const series = items.filter(i => i.type === 'series');
+
+            let html = '';
+            let statusIdx = 0;
+            let cardNum = 0;
+
+            if (movies.length > 0) {
+                html += `<div class="section-title">Movies (${movies.length})</div>`;
+                html += '<div class="poster-grid">';
+                for (const m of items) {
+                    if (m.type !== 'movie') { statusIdx++; continue; }
+                    html += renderCard(m, statuses[statusIdx] || {}, statusIdx, cardNum++);
+                    statusIdx++;
+                }
+                html += '</div>';
+            }
+
+            statusIdx = 0;
+            if (series.length > 0) {
+                html += `<div class="section-title">TV Shows (${series.length})</div>`;
+                html += '<div class="poster-grid">';
+                for (const s of items) {
+                    if (s.type !== 'series') { statusIdx++; continue; }
+                    html += renderCard(s, statuses[statusIdx] || {}, statusIdx, cardNum++);
+                    statusIdx++;
+                }
+                html += '</div>';
+            }
+
+            content.innerHTML = html;
+        }
+
+        function renderCard(item, status, idx, cardNum) {
+            const posterHtml = item.poster
+                ? `<img src="${item.poster}" alt="${escapeAttr(item.title)}" loading="lazy">`
+                : `<div class="poster-placeholder">?</div>`;
+            const badgeClass = item.type === 'movie' ? 'type-badge-movie' : 'type-badge-series';
+            const badgeLabel = item.type === 'movie' ? 'Movie' : 'TV';
+
+            const state = status.state || 'unknown';
+            const pct = status.pct || 0;
+            const detail = status.detail || '';
+
+            const stateLabels = {
+                'on_plex': 'On Plex',
+                'downloaded': 'Downloaded',
+                'downloading': `${pct}%`,
+                'partial': detail || 'Partial',
+                'waiting': 'Searching',
+                'unknown': '...',
+            };
+            const stateClass = state.replace('_', '-');
+            const labelText = stateLabels[state] || state;
+
+            return `
+                <div class="poster-card" style="animation-delay:${cardNum * 50}ms">
+                    ${posterHtml}
+                    <span class="type-badge ${badgeClass}">${badgeLabel}</span>
+                    <div class="card-info">
+                        <div class="card-info-title">${escapeHtml(item.title)}</div>
+                        <div class="card-info-meta">${item.year || ''}</div>
+                        <div class="status-bar">
+                            <div class="progress-track">
+                                <div class="progress-fill ${stateClass}" style="width:${pct}%"></div>
+                            </div>
+                            <div class="status-text">
+                                <span class="status-dot ${stateClass}"></span>
+                                <span>${labelText}</span>
+                            </div>
+                        </div>
+                        <button class="btn-remove" id="rm-${idx}" onclick="removeItem(${idx})">Remove</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        let pendingRemoveIdx = null;
+
+        function removeItem(idx) {
+            const items = allDownloads[currentUser] || [];
+            const item = items[idx];
+            if (!item) return;
+
+            pendingRemoveIdx = idx;
+            const modal = document.getElementById('removeModal');
+            const poster = document.getElementById('modalPoster');
+            const title = document.getElementById('modalTitle');
+
+            title.textContent = item.title;
+            if (item.poster) {
+                poster.src = item.poster;
+                poster.style.display = 'block';
+            } else {
+                poster.style.display = 'none';
+            }
+
+            document.getElementById('modalConfirm').onclick = confirmRemove;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('removeModal').classList.remove('active');
+            pendingRemoveIdx = null;
+        }
+
+        document.getElementById('removeModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        async function confirmRemove() {
+            const idx = pendingRemoveIdx;
+            if (idx === null) return;
+
+            const items = allDownloads[currentUser] || [];
+            const item = items[idx];
+            if (!item) return;
+
+            const confirmBtn = document.getElementById('modalConfirm');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Removing...';
+
+            try {
+                const res = await fetch('/api/remove', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: item.type,
+                        title: item.title,
+                        tmdbId: item.tmdbId,
+                        tvdbId: item.tvdbId,
+                    }),
+                });
+
+                const data = await res.json();
+
+                closeModal();
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Remove';
+
+                if (res.ok) {
+                    showToast(data.message, 'success');
+                    loadDownloads();
+                } else {
+                    showToast(data.message || 'Failed to remove', 'error');
+                }
+            } catch {
+                closeModal();
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Remove';
+                showToast('Network error', 'error');
+            }
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toasts');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            return (text || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        loadDownloads();
+
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) eventSource.close();
+        });
+    </script>
+</body>
+</html>

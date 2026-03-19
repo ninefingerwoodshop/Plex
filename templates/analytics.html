@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Analytics - Plex Search</title>
+    <style>
+        :root {
+            --gold: #e5a00d;
+            --gold-glow: rgba(229,160,13,0.25);
+            --bg: #141414;
+            --card: #1a1a1a;
+            --card-hover: #222;
+            --border: rgba(255,255,255,0.06);
+            --text: #e0e0e0;
+            --text-dim: rgba(255,255,255,0.4);
+            --blue: #3498db;
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --purple: #9b59b6;
+            --teal: #1abc9c;
+            --orange: #e67e22;
+            --pink: #e91e8f;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* Header */
+        header {
+            background: rgba(20,20,20,0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px var(--gold-glow);
+        }
+        header h1 { color: #fff; font-size: 1.1rem; font-weight: 700; letter-spacing: -0.3px; }
+        nav { display: flex; align-items: center; gap: 14px; }
+        nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        nav a.active { color: var(--gold); font-weight: 600; }
+        nav a:hover { color: #fff; }
+
+        /* Page layout */
+        .page-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px 80px;
+        }
+
+        /* User selector bar */
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .controls-bar h2 {
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .user-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .user-selector label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .user-selector select {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .user-selector select:focus {
+            border-color: var(--gold);
+        }
+
+        /* Section titles */
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--gold);
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        /* ==================== */
+        /* 1. YEAR IN REVIEW    */
+        /* ==================== */
+        .hero-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+            border-radius: 16px;
+            padding: 40px 32px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(229,160,13,0.15);
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-year {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .hero-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -1px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .hero-big-stat {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .big-number {
+            font-size: 4rem;
+            font-weight: 800;
+            color: var(--gold);
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+        .big-number-label {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .personality-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--gold), #d4940c);
+            color: #000;
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 8px 18px;
+            border-radius: 50px;
+            margin: 20px 0;
+            position: relative;
+            box-shadow: 0 4px 20px var(--gold-glow);
+        }
+        .personality-badge .badge-icon {
+            font-size: 1.1rem;
+        }
+
+        .hero-highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+            position: relative;
+        }
+        .hero-highlight-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+        }
+        .hero-highlight-card .hl-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        .hero-highlight-card .hl-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .hero-highlight-card .hl-sub {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+        .hero-poster {
+            width: 40px;
+            height: 60px;
+            border-radius: 4px;
+            object-fit: cover;
+            margin-top: 8px;
+            background: #333;
+        }
+        .fun-fact {
+            margin-top: 20px;
+            padding: 12px 16px;
+            background: rgba(229,160,13,0.08);
+            border-left: 3px solid var(--gold);
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85rem;
+            color: var(--text);
+            position: relative;
+        }
+        .fun-fact .ff-icon { margin-right: 6px; }
+
+        /* ==================== */
+        /* 2. WATCH HABITS      */
+        /* ==================== */
+        .habits-section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            border: 1px solid var(--border);
+        }
+        .heatmap-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .heatmap {
+            display: grid;
+            grid-template-columns: 48px repeat(24, 1fr);
+            gap: 2px;
+            min-width: 500px;
+        }
+        .heatmap-label {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-weight: 500;
+        }
+        .heatmap-hour-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-align: center;
+            padding-bottom: 4px;
+        }
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.03);
+            min-width: 14px;
+            min-height: 14px;
+            transition: transform 0.15s, background 0.3s;
+            cursor: default;
+            position: relative;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.3);
+            z-index: 2;
+        }
+        .heatmap-cell[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .heat-0 { background: rgba(255,255,255,0.03); }
+        .heat-1 { background: rgba(229,160,13,0.15); }
+        .heat-2 { background: rgba(229,160,13,0.3); }
+        .heat-3 { background: rgba(229,160,13,0.5); }
+        .heat-4 { background: rgba(229,160,13,0.7); }
+        .heat-5 { background: rgba(229,160,13,1); }
+        .heatmap-cell.peak-cell {
+            box-shadow: 0 0 8px var(--gold-glow);
+            outline: 2px solid var(--gold);
+            outline-offset: 1px;
+        }
+        .peak-indicator {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .peak-indicator strong { color: var(--gold); }
+
+        /* ==================== */
+        /* 3. LIBRARY OVERVIEW  */
+        /* ==================== */
+        .library-section {
+            margin-bottom: 32px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat-card .stat-number {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.1;
+        }
+        .stat-card .stat-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .stat-card .stat-icon {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        .chart-card h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        /* Horizontal bar chart */
+        .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bar-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            width: 70px;
+            text-align: right;
+            flex-shrink: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .bar-track {
+            flex: 1;
+            height: 20px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+            width: 0;
+        }
+        .bar-value {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            width: 36px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* Quality display (pie-like segments) */
+        .quality-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .quality-bar-container {
+            display: flex;
+            height: 28px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.04);
+        }
+        .quality-segment {
+            height: 100%;
+            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+            width: 0;
+            position: relative;
+        }
+        .quality-segment:first-child { border-radius: 6px 0 0 6px; }
+        .quality-segment:last-child { border-radius: 0 6px 6px 0; }
+        .quality-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .quality-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+        .quality-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* ==================== */
+        /* 4. LEADERBOARD       */
+        /* ==================== */
+        .leaderboard-section {
+            margin-bottom: 32px;
+        }
+        .leaderboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .lb-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .lb-card.lb-first {
+            border-color: rgba(229,160,13,0.3);
+        }
+        .lb-card.lb-first::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), #d4940c);
+        }
+        .lb-rank {
+            font-size: 2rem;
+            font-weight: 800;
+            color: rgba(255,255,255,0.08);
+            position: absolute;
+            top: 10px;
+            right: 16px;
+        }
+        .lb-card.lb-first .lb-rank { color: rgba(229,160,13,0.15); }
+        .lb-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .lb-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .lb-stat-item {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+        .lb-stat-item strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .awards-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .award-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-size: 0.78rem;
+        }
+        .award-badge .award-icon { font-size: 1rem; }
+        .award-badge .award-user {
+            color: var(--gold);
+            font-weight: 600;
+        }
+        .award-badge .award-title {
+            color: var(--text-dim);
+        }
+
+        /* Loading and error states */
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-msg {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .error-msg a { color: var(--gold); }
+
+        /* Animations */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .fade-up-d1 { animation-delay: 0.1s; }
+        .fade-up-d2 { animation-delay: 0.2s; }
+        .fade-up-d3 { animation-delay: 0.3s; }
+        .fade-up-d4 { animation-delay: 0.4s; }
+
+        /* No data placeholder */
+        .no-data {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 40px 20px;
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+            .hero-section {
+                padding: 28px 20px;
+            }
+            .big-number {
+                font-size: 2.8rem;
+            }
+            .hero-title {
+                font-size: 1.3rem;
+            }
+            .hero-highlights {
+                grid-template-columns: 1fr 1fr;
+            }
+            .bar-label { width: 56px; font-size: 0.65rem; }
+            .leaderboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 380px) {
+            .hero-highlights {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-logo">
+            <div class="logo-mark">&#9654;</div>
+            <h1>Plex Search</h1>
+        </div>
+        <nav>
+            <a href="/">Search</a>
+            <a href="/downloads">Downloads</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/analytics" class="active">Analytics</a>
+            <a href="/arrivals">New</a>
+            <a href="/seasonal">Seasonal</a>
+            <a href="/filter">Filter</a>
+            <a href="/logout">Sign out</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+        <!-- Controls -->
+        <div class="controls-bar">
+            <h2>Analytics</h2>
+            <div class="user-selector">
+                <label for="userSelect">Viewing as</label>
+                <select id="userSelect">
+                    <option value="{{ username }}">{{ username|capitalize }}</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 1. Year in Review (hero) -->
+        <div id="heroSection" class="hero-section fade-up" style="display:none;">
+            <div class="hero-year" id="heroYearLabel">YOUR 2025 IN REVIEW</div>
+            <div class="hero-title" id="heroUserTitle">Loading...</div>
+
+            <div class="hero-big-stat">
+                <span class="big-number" id="heroHours" data-target="0">0</span>
+                <span class="big-number-label">hours watched</span>
+            </div>
+
+            <div class="personality-badge" id="heroBadge" style="display:none;">
+                <span class="badge-icon" id="heroBadgeIcon"></span>
+                <span id="heroBadgeText"></span>
+            </div>
+
+            <div class="hero-highlights" id="heroHighlights"></div>
+
+            <div class="fun-fact" id="heroFunFact" style="display:none;">
+                <span class="ff-icon">*</span>
+                <span id="heroFunFactText"></span>
+            </div>
+        </div>
+
+        <div id="heroLoading" class="loading-spinner">
+            <span class="spinner"></span> Loading your year in review...
+        </div>
+
+        <!-- 2. Watch Habits -->
+        <div id="habitsSection" class="habits-section fade-up fade-up-d1" style="display:none;">
+            <div class="section-label">Watch Habits</div>
+            <div class="section-title">When You Watch</div>
+            <div class="heatmap-container">
+                <div class="heatmap" id="heatmap"></div>
+            </div>
+            <div class="peak-indicator" id="peakIndicator"></div>
+        </div>
+
+        <!-- 3. Library Overview -->
+        <div id="librarySection" class="library-section fade-up fade-up-d2" style="display:none;">
+            <div class="section-label">Library Overview</div>
+            <div class="section-title">Your Collection</div>
+
+            <div class="stats-grid" id="libraryStats"></div>
+
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>Genre Distribution</h3>
+                    <div class="bar-chart" id="genreChart"></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Decade Distribution</h3>
+                    <div class="bar-chart" id="decadeChart"></div>
+                </div>
+            </div>
+            <div class="chart-card" style="margin-top: 16px;">
+                <h3>Quality Breakdown</h3>
+                <div class="quality-display" id="qualityDisplay"></div>
+            </div>
+        </div>
+
+        <!-- 4. Leaderboard -->
+        <div id="leaderboardSection" class="leaderboard-section fade-up fade-up-d3" style="display:none;">
+            <div class="section-label">Leaderboard</div>
+            <div class="section-title">How You Compare</div>
+            <div class="leaderboard-grid" id="leaderboardGrid"></div>
+            <div class="awards-row" id="awardsRow"></div>
+        </div>
+    </div>
+
+<script>
+(function() {
+    const currentUser = '{{ username }}';
+    const userSelect = document.getElementById('userSelect');
+    const genreColors = [
+        'var(--gold)', 'var(--blue)', 'var(--green)', 'var(--red)',
+        'var(--purple)', 'var(--teal)', 'var(--orange)', 'var(--pink)',
+        '#f39c12', '#1abc9c', '#e74c3c', '#3498db'
+    ];
+    const qualityColors = {
+        '4K': '#e5a00d',
+        '1080p': '#3498db',
+        '720p': '#2ecc71',
+        '480p': '#9b59b6',
+        'SD': '#e74c3c',
+        'Other': '#95a5a6'
+    };
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const personalityIcons = {
+        'Action Hero': '&#9889;',
+        'Drama Enthusiast': '&#127917;',
+        'Comedy King': '&#128514;',
+        'Comedy Queen': '&#128514;',
+        'Horror Buff': '&#128123;',
+        'Sci-Fi Explorer': '&#128640;',
+        'Documentary Scholar': '&#128218;',
+        'Anime Devotee': '&#127752;',
+        'Thriller Seeker': '&#128270;',
+        'Romance Fan': '&#10084;',
+        'Binge Machine': '&#128250;',
+        'Night Owl': '&#127769;',
+        'Casual Viewer': '&#127871;'
+    };
+
+    // ---- Count-up animation ----
+    function animateCounter(el, target, duration) {
+        const start = performance.now();
+        const startVal = 0;
+        duration = duration || 1500;
+        function step(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            // ease out cubic
+            const ease = 1 - Math.pow(1 - progress, 3);
+            const value = Math.round(startVal + (target - startVal) * ease);
+            el.textContent = value.toLocaleString();
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    // ---- Fetch helpers ----
+    function fetchJSON(url) {
+        return fetch(url).then(r => {
+            if (!r.ok) throw new Error('Failed to load data');
+            return r.json();
+        });
+    }
+
+    // ---- Render Year in Review ----
+    function renderYearInReview(data) {
+        const section = document.getElementById('heroSection');
+        document.getElementById('heroLoading').style.display = 'none';
+        section.style.display = '';
+
+        const year = data.year || new Date().getFullYear();
+        document.getElementById('heroYearLabel').textContent = 'YOUR ' + year + ' IN REVIEW';
+        document.getElementById('heroUserTitle').textContent =
+            (data.username || currentUser).charAt(0).toUpperCase() +
+            (data.username || currentUser).slice(1) + "'s Wrapped";
+
+        // Big counter
+        const hoursEl = document.getElementById('heroHours');
+        const hours = Math.round(data.total_hours || 0);
+        hoursEl.setAttribute('data-target', hours);
+        animateCounter(hoursEl, hours, 2000);
+
+        // Personality badge
+        if (data.personality_type) {
+            const badge = document.getElementById('heroBadge');
+            badge.style.display = '';
+            const icon = personalityIcons[data.personality_type] || '&#11088;';
+            document.getElementById('heroBadgeIcon').innerHTML = icon;
+            document.getElementById('heroBadgeText').textContent = data.personality_type;
+        }
+
+        // Highlight cards
+        const highlights = document.getElementById('heroHighlights');
+        highlights.innerHTML = '';
+        const items = [];
+
+        if (data.top_genre) items.push({ label: 'Top Genre', value: data.top_genre });
+        if (data.top_show) {
+            items.push({
+                label: 'Top Show',
+                value: data.top_show.title || data.top_show,
+                poster: data.top_show.poster || null,
+                sub: data.top_show.episodes_watched ? data.top_show.episodes_watched + ' episodes' : null
+            });
+        }
+        if (data.top_movie) {
+            items.push({
+                label: 'Top Movie',
+                value: data.top_movie.title || data.top_movie,
+                poster: data.top_movie.poster || null,
+                sub: data.top_movie.watch_count ? 'Watched ' + data.top_movie.watch_count + 'x' : null
+            });
+        }
+        if (data.most_active_month) items.push({ label: 'Most Active Month', value: data.most_active_month });
+        if (data.binge_count != null) items.push({ label: 'Binge Sessions', value: data.binge_count.toString() });
+
+        items.forEach(function(item) {
+            const card = document.createElement('div');
+            card.className = 'hero-highlight-card';
+            let html = '<div class="hl-label">' + item.label + '</div>';
+            html += '<div class="hl-value">' + escapeHtml(typeof item.value === 'object' ? String(item.value) : item.value) + '</div>';
+            if (item.sub) html += '<div class="hl-sub">' + escapeHtml(item.sub) + '</div>';
+            if (item.poster) html += '<img class="hero-poster" src="' + escapeHtml(item.poster) + '" alt="" loading="lazy">';
+            card.innerHTML = html;
+            highlights.appendChild(card);
+        });
+
+        // Fun fact
+        if (data.fun_fact) {
+            const ff = document.getElementById('heroFunFact');
+            ff.style.display = '';
+            document.getElementById('heroFunFactText').textContent = data.fun_fact;
+        }
+    }
+
+    // ---- Render Watch Habits Heatmap ----
+    function renderHeatmap(data) {
+        const section = document.getElementById('habitsSection');
+        section.style.display = '';
+        const heatmap = document.getElementById('heatmap');
+        heatmap.innerHTML = '';
+
+        const grid = data.heatmap || data.watch_heatmap || {};
+        // grid is expected as { "Mon": [0,0,3,...24 values], ... } or { "0": {"0": 5, ...}, ... }
+
+        // Normalize to 2D array: [day][hour]
+        let matrix = [];
+        let maxVal = 0;
+
+        dayNames.forEach(function(day, di) {
+            let row = [];
+            for (let h = 0; h < 24; h++) {
+                let val = 0;
+                if (Array.isArray(grid[day])) {
+                    val = grid[day][h] || 0;
+                } else if (grid[day] && typeof grid[day] === 'object') {
+                    val = grid[day][String(h)] || grid[day][h] || 0;
+                } else if (Array.isArray(grid[di])) {
+                    val = grid[di][h] || 0;
+                } else if (grid[di] && typeof grid[di] === 'object') {
+                    val = grid[di][String(h)] || grid[di][h] || 0;
+                }
+                row.push(val);
+                if (val > maxVal) maxVal = val;
+            }
+            matrix.push(row);
+        });
+
+        // Header row: empty cell + 24 hour labels
+        const emptyCorner = document.createElement('div');
+        heatmap.appendChild(emptyCorner);
+        for (let h = 0; h < 24; h++) {
+            const label = document.createElement('div');
+            label.className = 'heatmap-hour-label';
+            label.textContent = h;
+            heatmap.appendChild(label);
+        }
+
+        // Find peak
+        let peakDay = 0, peakHour = 0, peakVal = 0;
+
+        dayNames.forEach(function(day, di) {
+            const label = document.createElement('div');
+            label.className = 'heatmap-label';
+            label.textContent = day;
+            heatmap.appendChild(label);
+
+            for (let h = 0; h < 24; h++) {
+                const val = matrix[di][h];
+                const cell = document.createElement('div');
+                const level = maxVal === 0 ? 0 : Math.ceil((val / maxVal) * 5);
+                cell.className = 'heatmap-cell heat-' + Math.min(level, 5);
+                cell.setAttribute('data-tooltip', day + ' ' + String(h).padStart(2, '0') + ':00 - ' + val + ' plays');
+                heatmap.appendChild(cell);
+
+                if (val > peakVal) {
+                    peakVal = val;
+                    peakDay = di;
+                    peakHour = h;
+                }
+            }
+        });
+
+        // Mark peak cell
+        if (peakVal > 0) {
+            const peakIndex = 25 + (peakDay * 25) + 1 + peakHour; // +25 for header row
+            const cells = heatmap.children;
+            if (cells[peakIndex]) {
+                cells[peakIndex].classList.add('peak-cell');
+            }
+        }
+
+        const indicator = document.getElementById('peakIndicator');
+        if (peakVal > 0) {
+            const ampm = peakHour >= 12 ? 'PM' : 'AM';
+            const h12 = peakHour === 0 ? 12 : peakHour > 12 ? peakHour - 12 : peakHour;
+            indicator.innerHTML = 'Peak watching: <strong>' + dayNames[peakDay] + ' at ' + h12 + ':00 ' + ampm + '</strong> (' + peakVal + ' plays)';
+        }
+    }
+
+    // ---- Render Library Overview ----
+    function renderLibrary(data) {
+        const section = document.getElementById('librarySection');
+        section.style.display = '';
+
+        // Stat cards
+        const statsGrid = document.getElementById('libraryStats');
+        statsGrid.innerHTML = '';
+        const statItems = [
+            { icon: '&#127909;', label: 'Movies', value: data.total_movies || 0 },
+            { icon: '&#128250;', label: 'Shows', value: data.total_shows || 0 },
+            { icon: '&#127916;', label: 'Episodes', value: data.total_episodes || 0 },
+            { icon: '&#128190;', label: 'Storage', value: data.total_storage || '0 GB' }
+        ];
+        statItems.forEach(function(s) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            const displayVal = typeof s.value === 'number' ? s.value.toLocaleString() : s.value;
+            card.innerHTML = '<div class="stat-icon">' + s.icon + '</div>' +
+                '<div class="stat-number" data-count="' + (typeof s.value === 'number' ? s.value : 0) + '">' + displayVal + '</div>' +
+                '<div class="stat-label">' + s.label + '</div>';
+            statsGrid.appendChild(card);
+        });
+
+        // Animate stat numbers
+        statsGrid.querySelectorAll('.stat-number[data-count]').forEach(function(el) {
+            const target = parseInt(el.getAttribute('data-count'));
+            if (target > 0) animateCounter(el, target, 1200);
+        });
+
+        // Genre distribution
+        renderBarChart('genreChart', data.genre_distribution || data.genres || {});
+
+        // Decade distribution
+        renderBarChart('decadeChart', data.decade_distribution || data.decades || {});
+
+        // Quality display
+        renderQualityDisplay(data.quality_distribution || data.quality || {});
+    }
+
+    function renderBarChart(containerId, dataObj) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        const entries = Object.entries(dataObj)
+            .sort(function(a, b) { return b[1] - a[1]; })
+            .slice(0, 10);
+
+        if (entries.length === 0) {
+            container.innerHTML = '<div class="no-data">No data available</div>';
+            return;
+        }
+
+        const maxVal = entries[0][1] || 1;
+
+        entries.forEach(function(entry, i) {
+            const label = entry[0];
+            const value = entry[1];
+            const pct = Math.round((value / maxVal) * 100);
+            const color = genreColors[i % genreColors.length];
+
+            const row = document.createElement('div');
+            row.className = 'bar-row';
+            row.innerHTML =
+                '<div class="bar-label" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
+                '<div class="bar-track"><div class="bar-fill" style="background:' + color + ';" data-width="' + pct + '%"></div></div>' +
+                '<div class="bar-value">' + value.toLocaleString() + '</div>';
+            container.appendChild(row);
+        });
+
+        // Animate bars after a short delay
+        requestAnimationFrame(function() {
+            setTimeout(function() {
+                container.querySelectorAll('.bar-fill').forEach(function(bar) {
+                    bar.style.width = bar.getAttribute('data-width');
+                });
+            }, 100);
+        });
+    }
+
+    function renderQualityDisplay(dataObj) {
+        const container = document.getElementById('qualityDisplay');
+        container.innerHTML = '';
+
+        const entries = Object.entries(dataObj);
+        if (entries.length === 0) {
+            container.innerHTML = '<div class="no-data">No data available</div>';
+            return;
+        }
+
+        const total = entries.reduce(function(sum, e) { return sum + e[1]; }, 0) || 1;
+
+        // Segmented bar
+        const barContainer = document.createElement('div');
+        barContainer.className = 'quality-bar-container';
+
+        entries.forEach(function(entry) {
+            const label = entry[0];
+            const value = entry[1];
+            const pct = (value / total) * 100;
+            const color = qualityColors[label] || qualityColors['Other'];
+            const seg = document.createElement('div');
+            seg.className = 'quality-segment';
+            seg.style.background = color;
+            seg.setAttribute('data-width', pct + '%');
+            seg.title = label + ': ' + value.toLocaleString() + ' (' + Math.round(pct) + '%)';
+            barContainer.appendChild(seg);
+        });
+        container.appendChild(barContainer);
+
+        // Legend
+        const legend = document.createElement('div');
+        legend.className = 'quality-legend';
+        entries.forEach(function(entry) {
+            const label = entry[0];
+            const value = entry[1];
+            const pct = Math.round((value / total) * 100);
+            const color = qualityColors[label] || qualityColors['Other'];
+            const item = document.createElement('div');
+            item.className = 'quality-legend-item';
+            item.innerHTML = '<span class="quality-dot" style="background:' + color + ';"></span>' +
+                escapeHtml(label) + ' ' + pct + '%';
+            legend.appendChild(item);
+        });
+        container.appendChild(legend);
+
+        // Animate segments
+        requestAnimationFrame(function() {
+            setTimeout(function() {
+                barContainer.querySelectorAll('.quality-segment').forEach(function(seg) {
+                    seg.style.width = seg.getAttribute('data-width');
+                });
+            }, 100);
+        });
+    }
+
+    // ---- Render Leaderboard ----
+    function renderLeaderboard(data) {
+        const section = document.getElementById('leaderboardSection');
+        const users = data.users || data.leaderboard || [];
+
+        if (!users.length || users.length < 2) {
+            // Don't show leaderboard for single user
+            return;
+        }
+
+        section.style.display = '';
+        const grid = document.getElementById('leaderboardGrid');
+        grid.innerHTML = '';
+
+        // Sort by hours descending
+        users.sort(function(a, b) { return (b.hours || 0) - (a.hours || 0); });
+
+        users.forEach(function(user, i) {
+            const card = document.createElement('div');
+            card.className = 'lb-card' + (i === 0 ? ' lb-first' : '');
+            card.innerHTML =
+                '<div class="lb-rank">#' + (i + 1) + '</div>' +
+                '<div class="lb-name">' + escapeHtml(user.username || user.name || 'User') + '</div>' +
+                '<div class="lb-stats">' +
+                    '<div class="lb-stat-item"><strong>' + Math.round(user.hours || 0).toLocaleString() + '</strong> hours</div>' +
+                    '<div class="lb-stat-item"><strong>' + (user.movies || 0).toLocaleString() + '</strong> movies</div>' +
+                    '<div class="lb-stat-item"><strong>' + (user.episodes || 0).toLocaleString() + '</strong> episodes</div>' +
+                    '<div class="lb-stat-item">Top: <strong>' + escapeHtml(user.top_genre || 'N/A') + '</strong></div>' +
+                '</div>';
+            grid.appendChild(card);
+        });
+
+        // Awards
+        const awardsRow = document.getElementById('awardsRow');
+        awardsRow.innerHTML = '';
+        const awards = data.awards || [];
+
+        if (awards.length === 0) {
+            // Generate default awards if not provided
+            const awardDefs = [
+                { title: 'Night Owl', icon: '&#127769;', pick: findAward(users, 'night_owl') },
+                { title: 'Binge Champion', icon: '&#127942;', pick: findAward(users, 'binge_champion') || (users[0] && users[0].username) },
+                { title: 'Most Diverse', icon: '&#127752;', pick: findAward(users, 'most_diverse') }
+            ];
+            awardDefs.forEach(function(a) {
+                if (a.pick) {
+                    awards.push({ title: a.title, icon: a.icon, username: a.pick });
+                }
+            });
+        }
+
+        awards.forEach(function(award) {
+            const badge = document.createElement('div');
+            badge.className = 'award-badge';
+            badge.innerHTML =
+                '<span class="award-icon">' + (award.icon || '&#11088;') + '</span>' +
+                '<span class="award-user">' + escapeHtml(award.username || '') + '</span>' +
+                '<span class="award-title">' + escapeHtml(award.title || '') + '</span>';
+            awardsRow.appendChild(badge);
+        });
+    }
+
+    function findAward(users, key) {
+        for (var i = 0; i < users.length; i++) {
+            if (users[i].awards && users[i].awards[key]) return users[i].username || users[i].name;
+        }
+        return null;
+    }
+
+    // ---- Utilities ----
+    function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ---- Data loading ----
+    function loadAllData(username) {
+        // Reset visibility
+        document.getElementById('heroSection').style.display = 'none';
+        document.getElementById('heroLoading').style.display = '';
+        document.getElementById('habitsSection').style.display = 'none';
+        document.getElementById('librarySection').style.display = 'none';
+        document.getElementById('leaderboardSection').style.display = 'none';
+
+        var u = encodeURIComponent(username);
+
+        // Fetch all endpoints in parallel
+        Promise.all([
+            fetchJSON('/api/analytics/year-in-review?username=' + u).catch(function() { return null; }),
+            fetchJSON('/api/analytics/user?username=' + u).catch(function() { return null; }),
+            fetchJSON('/api/analytics/library').catch(function() { return null; }),
+            fetchJSON('/api/analytics/leaderboard').catch(function() { return null; })
+        ]).then(function(results) {
+            var yearData = results[0];
+            var userData = results[1];
+            var libraryData = results[2];
+            var leaderboardData = results[3];
+
+            // Year in Review
+            if (yearData) {
+                renderYearInReview(yearData);
+            } else {
+                document.getElementById('heroLoading').innerHTML =
+                    '<div class="error-msg">Year in review data is not available yet.</div>';
+            }
+
+            // Watch habits (from user data)
+            if (userData && (userData.heatmap || userData.watch_heatmap)) {
+                renderHeatmap(userData);
+            }
+
+            // Library
+            if (libraryData) {
+                renderLibrary(libraryData);
+            }
+
+            // Leaderboard
+            if (leaderboardData) {
+                renderLeaderboard(leaderboardData);
+            }
+
+            // Populate user selector from leaderboard data
+            if (leaderboardData) {
+                populateUserSelector(leaderboardData.users || leaderboardData.leaderboard || []);
+            }
+        });
+    }
+
+    function populateUserSelector(users) {
+        var select = document.getElementById('userSelect');
+        var currentVal = select.value;
+        select.innerHTML = '';
+
+        if (!users.length) {
+            var opt = document.createElement('option');
+            opt.value = currentUser;
+            opt.textContent = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+            select.appendChild(opt);
+            return;
+        }
+
+        var seen = {};
+        users.forEach(function(u) {
+            var name = u.username || u.name || '';
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            var opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+            if (name === currentVal || name === currentUser) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        // Ensure current user is present
+        if (!seen[currentUser]) {
+            var opt = document.createElement('option');
+            opt.value = currentUser;
+            opt.textContent = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+            opt.selected = true;
+            select.insertBefore(opt, select.firstChild);
+        }
+    }
+
+    // User selector change
+    userSelect.addEventListener('change', function() {
+        loadAllData(this.value);
+    });
+
+    // Initial load
+    loadAllData(currentUser);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Plex Content Filter",
+  "version": "1.0",
+  "description": "Adds 'Hide from user' to Plex right-click menus",
+  "permissions": [],
+  "host_permissions": [
+    "http://localhost:32400/*",
+    "http://localhost:5050/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:32400/web/*",
+        "https://app.plex.tv/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon.png"
+  }
+}

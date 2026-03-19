@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Dashboard - Plex Search</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #141414;
+            color: #e0e0e0;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        header {
+            background: rgba(20,20,20,0.95);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        header h1 { color: #e5a00d; font-size: 1.2rem; letter-spacing: -0.5px; }
+        nav { display: flex; align-items: center; gap: 14px; }
+        nav a { color: #999; text-decoration: none; font-size: 0.85rem; }
+        nav a.active { color: #e5a00d; font-weight: 600; }
+        nav a.logout { color: #888; font-weight: 400; }
+
+        .page-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 16px 80px;
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid #252525;
+            transition: border-color 0.2s;
+        }
+        .stat-card:hover { border-color: #333; }
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #e5a00d;
+            line-height: 1.2;
+        }
+        .stat-value.streaming { color: #27ae60; }
+        .stat-label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            margin-top: 8px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title .count-badge {
+            font-size: 0.7rem;
+            background: #e5a00d;
+            color: #141414;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+        .btn-refresh {
+            background: transparent;
+            border: 1px solid #333;
+            color: #888;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-refresh:hover { border-color: #e5a00d; color: #e5a00d; }
+        .btn-refresh.spinning .refresh-icon { animation: spin 0.8s linear infinite; }
+        .refresh-icon { display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Live indicator */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #555;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+        .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #555; }
+        .live-indicator.connected { color: #27ae60; border-color: #27ae60; }
+        .live-indicator.connected .live-dot {
+            background: #27ae60;
+            box-shadow: 0 0 6px #27ae60;
+            animation: livePulse 2s infinite;
+        }
+        .live-indicator.connecting { color: #e5a00d; border-color: #e5a00d; }
+        .live-indicator.connecting .live-dot { background: #e5a00d; animation: livePulse 1s infinite; }
+        @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Now Streaming */
+        .stream-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+        .stream-card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border: 1px solid #252525;
+        }
+        .stream-user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e5a00d, #d4940c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #141414;
+            flex-shrink: 0;
+        }
+        .stream-info { flex: 1; min-width: 0; }
+        .stream-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .stream-meta {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .stream-progress {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .stream-progress-fill {
+            height: 100%;
+            background: #e5a00d;
+            border-radius: 2px;
+            transition: width 1s ease;
+        }
+        .stream-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .badge-direct { background: rgba(46,204,113,0.2); color: #27ae60; }
+        .badge-transcode { background: rgba(231,76,60,0.2); color: #e74c3c; }
+        .stream-quality {
+            font-size: 0.65rem;
+            color: #aaa;
+            background: rgba(255,255,255,0.06);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .stream-device {
+            font-size: 0.65rem;
+            color: #666;
+        }
+        .empty-streams {
+            text-align: center;
+            color: #555;
+            padding: 24px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            border: 1px solid #252525;
+            margin-bottom: 28px;
+        }
+
+        /* Disk Space */
+        .disk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+        .disk-card {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 12px 14px;
+            border: 1px solid #252525;
+        }
+        .disk-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .disk-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .disk-label-sub {
+            font-size: 0.65rem;
+            color: #666;
+            font-weight: 400;
+        }
+        .disk-pct {
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .disk-pct.green { color: #27ae60; }
+        .disk-pct.yellow { color: #f1c40f; }
+        .disk-pct.red { color: #e74c3c; }
+        .disk-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .disk-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .disk-bar-fill.green { background: #27ae60; }
+        .disk-bar-fill.yellow { background: #f1c40f; }
+        .disk-bar-fill.red { background: #e74c3c; }
+        .disk-detail {
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Upcoming Releases */
+        .upcoming-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .upcoming-card {
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #252525;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .upcoming-card:hover { border-color: #333; transform: translateY(-2px); }
+        .upcoming-poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            display: block;
+        }
+        .upcoming-poster-placeholder {
+            width: 100%;
+            aspect-ratio: 2/3;
+            background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 2rem;
+        }
+        .upcoming-info {
+            padding: 8px 10px 10px;
+        }
+        .upcoming-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        .upcoming-date {
+            font-size: 0.65rem;
+            color: #e5a00d;
+            margin-top: 3px;
+        }
+        .upcoming-type {
+            font-size: 0.6rem;
+            color: #888;
+            margin-top: 2px;
+        }
+        .type-badge {
+            position: absolute; top: 6px; left: 6px;
+            padding: 2px 6px; border-radius: 3px;
+            font-size: 0.6rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.3px; z-index: 5;
+        }
+        .type-badge-movie { background: rgba(52,152,219,0.9); color: #fff; }
+        .type-badge-series { background: rgba(46,204,113,0.9); color: #fff; }
+
+        /* Recent Downloads */
+        .recent-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 28px; }
+        .recent-item {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid #252525;
+        }
+        .recent-info { flex: 1; min-width: 0; }
+        .recent-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .recent-meta {
+            font-size: 0.65rem;
+            color: #888;
+            margin-top: 2px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .recent-quality {
+            font-size: 0.6rem;
+            color: #aaa;
+            background: rgba(255,255,255,0.06);
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+        .recent-date {
+            font-size: 0.65rem;
+            color: #555;
+            white-space: nowrap;
+        }
+
+        .empty-msg {
+            text-align: center;
+            color: #555;
+            padding: 24px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            border: 1px solid #252525;
+        }
+
+        .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 16px; left: 16px; right: 16px;
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 16px; border-radius: 8px; font-size: 0.85rem;
+            animation: slideUp 0.3s, fadeOut 0.3s 3.7s forwards;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5); pointer-events: auto;
+            text-align: center;
+        }
+        .toast-success { background: #27ae60; color: #fff; }
+        .toast-error { background: #c0392b; color: #fff; }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut { to { opacity: 0; } }
+
+        /* Desktop */
+        @media (min-width: 600px) {
+            header { padding: 14px 32px; }
+            header h1 { font-size: 1.4rem; }
+            .page-content { padding: 28px 32px 60px; }
+            .quick-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+            .stat-value { font-size: 1.8rem; }
+            .stream-card { padding: 16px 20px; }
+            .disk-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+            .upcoming-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+        }
+        @media (min-width: 1024px) {
+            .quick-stats { grid-template-columns: repeat(5, 1fr); }
+            .upcoming-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Plex Search</h1>
+        <nav>
+            <a href="/">Search</a>
+            <a href="/downloads">Downloads</a>
+            <a href="/dashboard" class="active">Dashboard</a>
+            <a href="/arrivals">New</a>
+            <a href="/seasonal">Seasonal</a>
+            <a href="/filter">Filter</a>
+            <a href="/logout" class="logout">Sign out</a>
+        </nav>
+    </header>
+
+    <div class="page-content">
+
+        <!-- Quick Stats -->
+        <div class="quick-stats" id="quickStats">
+            <div class="stat-card">
+                <div class="stat-value" id="statMovies">--</div>
+                <div class="stat-label">Movies</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statShows">--</div>
+                <div class="stat-label">Shows</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statEpisodes">--</div>
+                <div class="stat-label">Episodes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value streaming" id="statStreams">0</div>
+                <div class="stat-label">Streaming</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statStorage">--</div>
+                <div class="stat-label">Storage Used</div>
+            </div>
+        </div>
+
+        <!-- Now Streaming -->
+        <div class="section-header">
+            <div class="section-title">
+                Now Streaming
+                <div class="live-indicator" id="liveIndicator">
+                    <span class="live-dot"></span> Live
+                </div>
+            </div>
+        </div>
+        <div id="streamList" class="stream-list">
+            <div class="empty-streams">No active streams</div>
+        </div>
+
+        <!-- System Status -->
+        <div class="section-header">
+            <div class="section-title">System Status</div>
+            <button class="btn-refresh" onclick="loadDiskSpace()" id="btnRefreshDisk">
+                <span class="refresh-icon">&#8635;</span> Refresh
+            </button>
+        </div>
+        <div id="diskGrid" class="disk-grid">
+            <div class="empty-msg"><span class="spinner"></span> Loading disk info...</div>
+        </div>
+
+        <!-- Upcoming Releases -->
+        <div class="section-header">
+            <div class="section-title">
+                Upcoming Releases
+                <span class="count-badge" id="upcomingCount">0</span>
+            </div>
+            <button class="btn-refresh" onclick="loadUpcoming()" id="btnRefreshUpcoming">
+                <span class="refresh-icon">&#8635;</span> Refresh
+            </button>
+        </div>
+        <div id="upcomingGrid" class="upcoming-grid">
+            <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+
+        <!-- Recent Downloads -->
+        <div class="section-header">
+            <div class="section-title">
+                Recent Downloads
+                <span class="count-badge" id="recentCount">0</span>
+            </div>
+            <button class="btn-refresh" onclick="loadRecent()" id="btnRefreshRecent">
+                <span class="refresh-icon">&#8635;</span> Refresh
+            </button>
+        </div>
+        <div id="recentList" class="recent-list">
+            <div class="empty-msg"><span class="spinner"></span> Loading...</div>
+        </div>
+
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        /* ── SSE: Now Streaming ─────────────────────────────── */
+        let eventSource = null;
+
+        function connectStream() {
+            if (eventSource) { eventSource.close(); eventSource = null; }
+
+            const indicator = document.getElementById('liveIndicator');
+            indicator.classList.remove('connected');
+            indicator.classList.add('connecting');
+
+            eventSource = new EventSource('/api/dashboard/stream');
+
+            eventSource.onopen = () => {
+                indicator.classList.remove('connecting');
+                indicator.classList.add('connected');
+            };
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.error) return;
+                    renderStreams(data);
+                    indicator.classList.remove('connecting');
+                    indicator.classList.add('connected');
+                } catch {}
+            };
+
+            eventSource.onerror = () => {
+                indicator.classList.remove('connected');
+                indicator.classList.add('connecting');
+            };
+        }
+
+        function renderStreams(sessions) {
+            const container = document.getElementById('streamList');
+            const statEl = document.getElementById('statStreams');
+            const count = Array.isArray(sessions) ? sessions.length : 0;
+            statEl.textContent = count;
+
+            if (count === 0) {
+                container.innerHTML = '<div class="empty-streams">No active streams</div>';
+                return;
+            }
+
+            container.innerHTML = sessions.map(s => {
+                const initials = (s.user || '?').charAt(0).toUpperCase();
+                const pct = s.progress || 0;
+                const isTranscode = s.transcode === true;
+                const badgeClass = isTranscode ? 'badge-transcode' : 'badge-direct';
+                const badgeText = isTranscode ? 'Transcode' : 'Direct Play';
+                const quality = s.quality || '';
+                const device = s.device || '';
+
+                return `
+                    <div class="stream-card">
+                        <div class="stream-user-avatar">${escapeHtml(initials)}</div>
+                        <div class="stream-info">
+                            <div class="stream-title">${escapeHtml(s.title || 'Unknown')}</div>
+                            <div class="stream-meta">
+                                <span>${escapeHtml(s.user || 'Unknown')}</span>
+                                <span class="stream-badge ${badgeClass}">${badgeText}</span>
+                                ${quality ? `<span class="stream-quality">${escapeHtml(quality)}</span>` : ''}
+                                ${device ? `<span class="stream-device">${escapeHtml(device)}</span>` : ''}
+                            </div>
+                            <div class="stream-progress">
+                                <div class="stream-progress-fill" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* ── Disk Space ─────────────────────────────────────── */
+        async function loadDiskSpace() {
+            const btn = document.getElementById('btnRefreshDisk');
+            btn.classList.add('spinning');
+
+            const drives = {
+                'Movie Drives': [
+                    { letter: 'O:', label: 'O: Drive' },
+                    { letter: 'K:', label: 'K: Drive' },
+                    { letter: 'D:', label: 'D: Drive' },
+                    { letter: 'L:', label: 'L: Drive' },
+                ],
+                'TV Drives': [
+                    { letter: 'E:', label: 'E: Drive' },
+                    { letter: 'F:', label: 'F: Drive' },
+                    { letter: 'G:', label: 'G: Drive' },
+                    { letter: 'H:', label: 'H: Drive' },
+                    { letter: 'I:', label: 'I: Drive' },
+                    { letter: 'M:', label: 'M: Drive' },
+                    { letter: 'N:', label: 'N: Drive' },
+                ],
+            };
+
+            try {
+                const res = await fetch('/api/dashboard/disks');
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                const container = document.getElementById('diskGrid');
+                let html = '';
+                let totalUsed = 0;
+                let totalSize = 0;
+
+                for (const [group, driveList] of Object.entries(drives)) {
+                    for (const d of driveList) {
+                        const info = data[d.letter] || null;
+                        if (!info) {
+                            html += `
+                                <div class="disk-card">
+                                    <div class="disk-header">
+                                        <div class="disk-label">${d.label} <span class="disk-label-sub">${group}</span></div>
+                                        <div class="disk-pct" style="color:#555">Offline</div>
+                                    </div>
+                                    <div class="disk-bar"><div class="disk-bar-fill" style="width:0%"></div></div>
+                                    <div class="disk-detail">Not available</div>
+                                </div>
+                            `;
+                            continue;
+                        }
+
+                        const pct = info.percent || 0;
+                        const colorClass = pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green';
+                        const usedGB = info.used_gb || 0;
+                        const totalGB = info.total_gb || 0;
+                        const freeGB = info.free_gb || 0;
+                        totalUsed += usedGB;
+                        totalSize += totalGB;
+
+                        html += `
+                            <div class="disk-card">
+                                <div class="disk-header">
+                                    <div class="disk-label">${d.label} <span class="disk-label-sub">${group}</span></div>
+                                    <div class="disk-pct ${colorClass}">${pct.toFixed(1)}%</div>
+                                </div>
+                                <div class="disk-bar">
+                                    <div class="disk-bar-fill ${colorClass}" style="width:${pct}%"></div>
+                                </div>
+                                <div class="disk-detail">${formatSize(usedGB)} used / ${formatSize(totalGB)} total &middot; ${formatSize(freeGB)} free</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                container.innerHTML = html;
+
+                // Update total storage stat
+                const storageEl = document.getElementById('statStorage');
+                storageEl.textContent = formatSize(totalUsed);
+
+            } catch {
+                document.getElementById('diskGrid').innerHTML =
+                    '<div class="empty-msg">Failed to load disk information.</div>';
+            }
+
+            btn.classList.remove('spinning');
+        }
+
+        function formatSize(gb) {
+            if (gb >= 1000) return (gb / 1000).toFixed(1) + ' TB';
+            return gb.toFixed(0) + ' GB';
+        }
+
+        /* ── Quick Stats ────────────────────────────────────── */
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/dashboard/stats');
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                document.getElementById('statMovies').textContent = formatNumber(data.total_movies || 0);
+                document.getElementById('statShows').textContent = formatNumber(data.total_shows || 0);
+                document.getElementById('statEpisodes').textContent = formatNumber(data.total_episodes || 0);
+            } catch {}
+        }
+
+        function formatNumber(n) {
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+            return n.toString();
+        }
+
+        /* ── Upcoming Releases ──────────────────────────────── */
+        async function loadUpcoming() {
+            const btn = document.getElementById('btnRefreshUpcoming');
+            btn.classList.add('spinning');
+
+            try {
+                const res = await fetch('/api/dashboard/upcoming');
+                if (!res.ok) throw new Error();
+                const items = await res.json();
+                const container = document.getElementById('upcomingGrid');
+                const countEl = document.getElementById('upcomingCount');
+                countEl.textContent = items.length;
+
+                if (items.length === 0) {
+                    container.innerHTML = '<div class="empty-msg">No upcoming releases found.</div>';
+                    btn.classList.remove('spinning');
+                    return;
+                }
+
+                container.innerHTML = items.map(item => {
+                    const posterHtml = item.poster
+                        ? `<img class="upcoming-poster" src="${item.poster}" alt="${escapeAttr(item.title)}" loading="lazy">`
+                        : `<div class="upcoming-poster-placeholder">?</div>`;
+                    const typeLabel = item.type === 'movie' ? 'Movie' : 'Episode';
+                    const dateStr = item.release_date ? formatDate(item.release_date) : 'TBA';
+
+                    return `
+                        <div class="upcoming-card" style="position:relative">
+                            ${posterHtml}
+                            <span class="type-badge ${item.type === 'movie' ? 'type-badge-movie' : 'type-badge-series'}">${typeLabel}</span>
+                            <div class="upcoming-info">
+                                <div class="upcoming-title">${escapeHtml(item.title)}</div>
+                                <div class="upcoming-date">${dateStr}</div>
+                                ${item.subtitle ? `<div class="upcoming-type">${escapeHtml(item.subtitle)}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch {
+                document.getElementById('upcomingGrid').innerHTML =
+                    '<div class="empty-msg">Failed to load upcoming releases.</div>';
+            }
+
+            btn.classList.remove('spinning');
+        }
+
+        /* ── Recent Downloads ───────────────────────────────── */
+        async function loadRecent() {
+            const btn = document.getElementById('btnRefreshRecent');
+            btn.classList.add('spinning');
+
+            try {
+                const res = await fetch('/api/dashboard/recent');
+                if (!res.ok) throw new Error();
+                const items = await res.json();
+                const container = document.getElementById('recentList');
+                const countEl = document.getElementById('recentCount');
+                countEl.textContent = items.length;
+
+                if (items.length === 0) {
+                    container.innerHTML = '<div class="empty-msg">No recent downloads.</div>';
+                    btn.classList.remove('spinning');
+                    return;
+                }
+
+                container.innerHTML = items.map(item => {
+                    const quality = item.quality || '';
+                    const size = item.size ? formatFileSize(item.size) : '';
+                    const date = item.date ? formatDate(item.date) : '';
+
+                    return `
+                        <div class="recent-item">
+                            <div class="recent-info">
+                                <div class="recent-title">${escapeHtml(item.title)}</div>
+                                <div class="recent-meta">
+                                    ${quality ? `<span class="recent-quality">${escapeHtml(quality)}</span>` : ''}
+                                    ${size ? `<span>${size}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="recent-date">${date}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch {
+                document.getElementById('recentList').innerHTML =
+                    '<div class="empty-msg">Failed to load recent downloads.</div>';
+            }
+
+            btn.classList.remove('spinning');
+        }
+
+        /* ── Helpers ────────────────────────────────────────── */
+        function formatDate(dateStr) {
+            try {
+                const d = new Date(dateStr);
+                const now = new Date();
+                const diffMs = d - now;
+                const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+                const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                if (diffDays === 0) return 'Today';
+                if (diffDays === 1) return 'Tomorrow';
+                if (diffDays > 0 && diffDays <= 7) return `In ${diffDays} days`;
+                return formatted;
+            } catch {
+                return dateStr;
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+            if (bytes >= 1048576) return (bytes / 1048576).toFixed(0) + ' MB';
+            return (bytes / 1024).toFixed(0) + ' KB';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            return (text || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function showToast(message, type) {
+            const container = document.getElementById('toasts');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        /* ── Init ───────────────────────────────────────────── */
+        connectStream();
+        loadStats();
+        loadDiskSpace();
+        loadUpcoming();
+        loadRecent();
+
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) eventSource.close();
+        });
+    </script>
+</body>
+</html>
