@@ -822,8 +822,22 @@ def dashboard_stream():
 @app.route("/api/dashboard/disks")
 @login_required
 def dashboard_disks():
-    """Disk space for all drives."""
-    return jsonify(check_disk_space())
+    """Disk space for all drives, keyed by drive letter (e.g. 'O:')."""
+    raw = check_disk_space()
+    result = {}
+    for entry in raw:
+        drive = entry.get("drive", "")
+        key = drive.rstrip("\\/")  # "O:\\" -> "O:"
+        if not key.endswith(":"):
+            key += ":"
+        result[key] = {
+            "percent": entry.get("pct_used", 0),
+            "used_gb": entry.get("used_gb", 0),
+            "total_gb": entry.get("total_gb", 0),
+            "free_gb": entry.get("free_gb", 0),
+            "warning": entry.get("warning", False),
+        }
+    return jsonify(result)
 
 
 @app.route("/api/dashboard/upcoming")
@@ -837,7 +851,7 @@ def dashboard_upcoming():
             upcoming.append({
                 "title": m.get("title", ""),
                 "type": "movie",
-                "date": m.get("physicalRelease", m.get("digitalRelease", "")),
+                "release_date": m.get("physicalRelease", m.get("digitalRelease", "")),
                 "poster": m.get("remotePoster", ""),
             })
     except Exception:
@@ -848,12 +862,12 @@ def dashboard_upcoming():
             upcoming.append({
                 "title": f"{ep.get('series', {}).get('title', '')} S{ep.get('seasonNumber', 0):02d}E{ep.get('episodeNumber', 0):02d}",
                 "type": "episode",
-                "date": ep.get("airDateUtc", ""),
-                "episode_title": ep.get("title", ""),
+                "release_date": ep.get("airDateUtc", ""),
+                "subtitle": ep.get("title", ""),
             })
     except Exception:
         pass
-    upcoming.sort(key=lambda x: x.get("date", ""))
+    upcoming.sort(key=lambda x: x.get("release_date", ""))
     return jsonify(upcoming[:20])
 
 
