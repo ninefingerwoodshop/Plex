@@ -28,12 +28,18 @@
             min-height: 100dvh;
         }
 
+        /* Header */
         header {
-            background: rgba(20,20,20,0.95);
-            padding: 12px 16px;
+            background: rgba(10,10,15,0.9);
+            padding: 0 16px;
+            padding-top: max(0px, env(safe-area-inset-top));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            height: calc(60px + max(0px, env(safe-area-inset-top)));
             display: flex;
-            align-items: center;
+            align-items: flex-end;
             justify-content: space-between;
+            padding-bottom: 10px;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -43,18 +49,95 @@
         }
         .header-logo { display: flex; align-items: center; gap: 10px; }
         .logo-mark {
-            width: 32px; height: 32px;
+            width: 36px; height: 36px;
             background: linear-gradient(135deg, var(--gold), #d4940c);
-            border-radius: 8px;
+            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.9rem;
+            font-size: 1rem;
             box-shadow: 0 2px 10px var(--gold-glow);
+            flex-shrink: 0;
         }
-        header h1 { color: var(--gold); font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; }
-        nav { display: flex; align-items: center; gap: 14px; }
-        nav a { color: #999; text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: color 0.2s; }
-        nav a.active { color: var(--gold); font-weight: 600; }
-        nav a:hover { color: #fff; }
+        header h1 { color: #fff; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+        .menu-btn {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 5px; cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .menu-btn:active { background: rgba(255,255,255,0.14); }
+        .menu-btn span {
+            display: block; width: 20px; height: 2px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 2px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .menu-btn.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+        .menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+        .menu-btn.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+        .dropdown-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 90;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .dropdown-overlay.open { pointer-events: auto; opacity: 1; }
+        .dropdown-menu {
+            position: fixed;
+            top: 0; right: 0;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #111118;
+            border-left: 1px solid var(--border);
+            z-index: 91;
+            padding: 0 0 max(20px, env(safe-area-inset-bottom));
+            padding-top: max(0px, env(safe-area-inset-top));
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .dropdown-menu.open { transform: translateX(0); }
+        .dropdown-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .dropdown-user { font-size: 1rem; color: #fff; font-weight: 700; }
+        .dropdown-close {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.3rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .dropdown-menu a {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 20px;
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+        .dropdown-menu a:active { background: rgba(255,255,255,0.06); }
+        .dropdown-menu a.active { color: var(--gold); background: rgba(229,160,13,0.07); }
+        .dropdown-menu a .menu-icon { font-size: 1.25rem; width: 28px; text-align: center; flex-shrink: 0; }
+        .dropdown-menu .menu-divider { height: 1px; background: var(--border); margin: 6px 20px; }
+        .dropdown-menu .logout-link { color: var(--red); margin-top: auto; }
 
         .page-content { max-width: 1400px; margin: 0 auto; padding: 20px 16px 100px; }
 
@@ -394,8 +477,6 @@
             .stat-card { min-width: 80px; padding: 10px 14px; }
             .stat-value { font-size: 1.4rem; }
             .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-            nav { gap: 10px; }
-            nav a { font-size: 0.75rem; }
             .show-row { padding: 10px 12px; }
         }
     </style>
@@ -403,18 +484,31 @@
 <body>
     <header>
         <div class="header-logo">
-            <div class="logo-mark">N</div>
-            <h1>New Arrivals</h1>
+            <div class="logo-mark">&#9654;</div>
+            <h1>Plex Search</h1>
         </div>
-        <nav>
-            <a href="/">Search</a>
-            <a href="/recommendations">For You</a>
-            <a href="/arrivals" class="active">New</a>
-            <a href="/seasonal">Seasonal</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/logout">{{ username }}</a>
-        </nav>
+        <div class="menu-btn" id="menuBtn" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
     </header>
+
+    <div class="dropdown-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+    <div class="dropdown-menu" id="menuPanel">
+        <div class="dropdown-header">
+            <span class="dropdown-user">{{ username|capitalize }}</span>
+            <div class="dropdown-close" onclick="toggleMenu()">&times;</div>
+        </div>
+        <a href="/"><span class="menu-icon">&#128269;</span> Search</a>
+        <a href="/downloads"><span class="menu-icon">&#11015;</span> My Downloads</a>
+        <a href="/dashboard"><span class="menu-icon">&#128202;</span> Dashboard</a>
+        <a href="/recommendations"><span class="menu-icon">&#11088;</span> For You</a>
+        <a href="/analytics"><span class="menu-icon">&#128200;</span> Analytics</a>
+        <a href="/arrivals" class="active"><span class="menu-icon">&#127381;</span> New Arrivals</a>
+        <a href="/seasonal"><span class="menu-icon">&#127809;</span> Seasonal</a>
+        <a href="/filter"><span class="menu-icon">&#128683;</span> Filter</a>
+        <div class="menu-divider"></div>
+        <a href="/logout" class="logout-link"><span class="menu-icon">&#10140;</span> Sign Out</a>
+    </div>
 
     <div class="page-content">
         <div class="page-header">
@@ -485,6 +579,12 @@
     <div class="toast-container" id="toasts"></div>
 
     <script>
+    function toggleMenu() {
+        document.getElementById('menuBtn').classList.toggle('open');
+        document.getElementById('menuOverlay').classList.toggle('open');
+        document.getElementById('menuPanel').classList.toggle('open');
+    }
+
     let currentDays = 7;
 
     function toast(msg, type='success') {
