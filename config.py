@@ -66,11 +66,6 @@ TMDB = {
     "image_base": "https://image.tmdb.org/t/p",
 }
 
-# Notifications (Discord webhook for health monitor alerts)
-NOTIFY = {
-    "discord_webhook": "",  # Fill in your Discord webhook URL
-    "enabled": False,  # Set True once webhook is configured
-}
 
 # Storage drives
 STORAGE = {
@@ -106,6 +101,5 @@ SEASONAL = {
 # New Arrivals Digest
 DIGEST = {
     "default_days": 7,        # Default lookback period for digest
-    "discord_webhook": "",    # Discord webhook for automated digest sends
-    "auto_send": False,       # Set True to auto-send weekly digests
+    "auto_send": False,
 }

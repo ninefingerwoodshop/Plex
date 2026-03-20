@@ -33,7 +33,7 @@ from collection_posters import get_plex_collections, find_tmdb_collection_art, a
 from storage_balancer import get_drive_usage, get_media_per_drive, suggest_moves, get_largest_items, get_balance_report
 from content_filter import get_all_shows, get_all_movies, get_plex_users, get_hidden_for_user, toggle_hide, bulk_update
 from seasonal_collections import get_seasonal_summary, get_all_seasons_status, find_seasonal_movies, build_seasonal_collections, clean_expired_collections
-from new_arrivals_digest import generate_digest, load_last_digest, save_digest, send_digest_discord
+from new_arrivals_digest import generate_digest, load_last_digest, save_digest
 
 app = Flask(__name__, static_folder="static")
 app.secret_key = APP["secret_key"]
@@ -1383,21 +1383,6 @@ def arrivals_last():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-
-@app.route("/api/arrivals/discord", methods=["POST"])
-@login_required
-def arrivals_discord():
-    data = request.get_json() or {}
-    webhook_url = data.get("webhook_url", "")
-    days = data.get("days", 7)
-    if not webhook_url:
-        return jsonify({"error": "No webhook URL provided"}), 400
-    try:
-        digest = generate_digest(days=days)
-        success = send_digest_discord(digest, webhook_url)
-        return jsonify({"status": "sent" if success else "failed"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 

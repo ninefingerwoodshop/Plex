@@ -1,6 +1,6 @@
 # Plex Media Stack - API Helpers
 import requests
-from config import PLEX, SONARR, RADARR, TMDB, NOTIFY
+from config import PLEX, SONARR, RADARR, TMDB
 
 
 def plex_get(endpoint, params=None):
@@ -272,18 +272,3 @@ def plex_post(endpoint, params=None, data=None):
     r = requests.post(f"{PLEX['url']}{endpoint}", params=p, data=data)
     r.raise_for_status()
     return r
-
-
-# --- Notification helpers ---
-
-def send_discord(message, title=None):
-    """Send a Discord webhook notification."""
-    if not NOTIFY["enabled"] or not NOTIFY["discord_webhook"]:
-        return
-    embed = {"description": message, "color": 15105570}
-    if title:
-        embed["title"] = title
-    try:
-        requests.post(NOTIFY["discord_webhook"], json={"embeds": [embed]}, timeout=5)
-    except Exception:
-        pass

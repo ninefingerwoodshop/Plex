@@ -1,10 +1,8 @@
 # Plex Media Stack - New Arrivals Digest
 # Generates a weekly digest of newly added movies and TV shows
-# Sends via Discord webhook and/or serves via API for the web dashboard
 #
 # Usage:
 #   python new_arrivals_digest.py                    # Print digest to console
-#   python new_arrivals_digest.py --discord=URL      # Send to Discord
 #   python new_arrivals_digest.py --days=7           # Custom lookback period
 #   python new_arrivals_digest.py --save             # Save digest to JSON
 
@@ -261,86 +259,13 @@ def print_digest(digest):
     print()
 
 
-def send_digest_discord(digest, webhook_url):
-    """Send the digest as a rich Discord embed."""
-    import requests
-
-    stats = digest["stats"]
-
-    # Build movie list (top 10)
-    movie_lines = []
-    for m in digest["movies"][:10]:
-        rating = f" [{m['rating']:.1f}]" if m.get("rating") else ""
-        movie_lines.append(f"**{m['title']}** ({m['year']}){rating}")
-    if len(digest["movies"]) > 10:
-        movie_lines.append(f"_...and {len(digest['movies']) - 10} more_")
-
-    # Build show list
-    show_lines = []
-    for s in digest["shows"][:10]:
-        show_lines.append(f"**{s['show']}** - {s['episode_summary']}")
-    if len(digest["shows"]) > 10:
-        show_lines.append(f"_...and {len(digest['shows']) - 10} more_")
-
-    # Genre tags
-    genre_tags = " | ".join(f"{g['genre']} ({g['count']})" for g in stats["top_genres"])
-
-    fields = []
-    if movie_lines:
-        fields.append({
-            "name": f"New Movies ({stats['new_movies']})",
-            "value": "\n".join(movie_lines),
-            "inline": False,
-        })
-    if show_lines:
-        fields.append({
-            "name": f"New TV ({stats['new_shows']} shows, {stats['new_episodes']} episodes)",
-            "value": "\n".join(show_lines),
-            "inline": False,
-        })
-    if genre_tags:
-        fields.append({
-            "name": "Top Genres",
-            "value": genre_tags,
-            "inline": False,
-        })
-
-    embed = {
-        "title": "Weekly Plex Digest - New Arrivals",
-        "description": f"Here's what was added from **{digest['period_start']}** to **{digest['period_end']}**",
-        "color": 0xE5A00D,  # Plex gold
-        "fields": fields,
-        "footer": {"text": "Plex Media Stack"},
-        "timestamp": datetime.utcnow().isoformat(),
-    }
-
-    # Add poster of first movie as thumbnail
-    if digest["movies"] and digest["movies"][0].get("poster"):
-        embed["thumbnail"] = {"url": digest["movies"][0]["poster"]}
-
-    try:
-        r = requests.post(webhook_url, json={"embeds": [embed]}, timeout=10)
-        if r.status_code in (200, 204):
-            print("  Digest sent to Discord!")
-            return True
-        else:
-            print(f"  Discord error: {r.status_code} - {r.text}")
-            return False
-    except Exception as e:
-        print(f"  Discord error: {e}")
-        return False
-
-
 if __name__ == "__main__":
     days = 7
-    discord = None
     save = False
 
     for arg in sys.argv[1:]:
         if arg.startswith("--days="):
             days = int(arg.split("=")[1])
-        elif arg.startswith("--discord="):
-            discord = arg.split("=", 1)[1]
         elif arg == "--save":
             save = True
 
@@ -349,6 +274,3 @@ if __name__ == "__main__":
 
     if save:
         save_digest(digest)
-
-    if discord:
-        send_digest_discord(digest, discord)

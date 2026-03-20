@@ -11,7 +11,6 @@ from collections import defaultdict
 from api import (
     radarr_get, radarr_put, sonarr_get, sonarr_put,
     get_plex_movies, get_plex_shows,
-    send_discord,
 )
 from config import STORAGE, PLEX
 
@@ -435,12 +434,6 @@ def execute_move(source_path, dest_drive, update_arr=True, confirmed=False):
         "updated_arr": update_arr,
     })
     _save_move_history(history)
-
-    send_discord(
-        f"Moved **{folder_name}** from `{_drive_letter(source_path)}` "
-        f"to `{dest_drive}`",
-        title="Storage Balancer - Move Complete",
-    )
 
     result["success"] = True
     result["message"] = f"Successfully moved to {dest_path}"

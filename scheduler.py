@@ -1,10 +1,9 @@
 # Plex Media Stack - Scheduled Reports
-# Runs health checks on a schedule and optionally sends to Discord
+# Runs health checks on a schedule
 #
 # Usage:
 #   python scheduler.py                          # Run once now
 #   python scheduler.py --interval=3600          # Run every hour
-#   python scheduler.py --discord=WEBHOOK_URL    # Send to Discord
 
 import sys
 import time
@@ -13,8 +12,8 @@ import contextlib
 from datetime import datetime
 
 
-def run_health_check(discord_webhook=None):
-    """Run all health reports and optionally send summary to Discord."""
+def run_health_check():
+    """Run all health reports."""
     print(f"\n  [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Running health check...")
 
     results = {}
@@ -82,70 +81,21 @@ def run_health_check(discord_webhook=None):
             details = ", ".join(f"{k}={v}" for k, v in val.items())
             print(f"    {key}: {details}")
 
-    # Send to Discord
-    if discord_webhook:
-        try:
-            from discord_bot import send_embed
-
-            fields = []
-            sync = results.get("sync", {})
-            if "error" not in sync:
-                fields.append({
-                    "name": "Sync Issues",
-                    "value": f"{sync.get('radarr_not_plex', 0)} Radarr->Plex\n"
-                             f"{sync.get('plex_not_radarr', 0)} Plex->Radarr",
-                    "inline": True,
-                })
-
-            quality = results.get("quality", {})
-            if "error" not in quality:
-                fields.append({
-                    "name": "Quality",
-                    "value": f"{quality.get('low_res', 0)} low-res\n"
-                             f"{quality.get('no_subs', 0)} no subs",
-                    "inline": True,
-                })
-
-            stale = results.get("stale", {})
-            if "error" not in stale:
-                cam = stale.get("cam", 0)
-                ts = stale.get("telesync", 0)
-                if cam + ts > 0:
-                    fields.append({
-                        "name": "Upgrades Needed",
-                        "value": f"{cam} CAM, {ts} TELESYNC",
-                        "inline": True,
-                    })
-
-            send_embed(
-                "Plex Health Check",
-                f"Automated report - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                fields=fields,
-                webhook_url=discord_webhook,
-            )
-            print("  Report sent to Discord!")
-        except Exception as e:
-            print(f"  Discord send failed: {e}")
-
     return results
 
 
 if __name__ == "__main__":
     interval = None
-    discord = None
 
     for arg in sys.argv[1:]:
         if arg.startswith("--interval="):
             interval = int(arg.split("=")[1])
-        elif arg.startswith("--discord="):
-            discord = arg.split("=", 1)[1]
 
     if interval:
         print(f"  Running health checks every {interval} seconds")
-        print(f"  Discord: {'enabled' if discord else 'disabled'}")
         while True:
-            run_health_check(discord_webhook=discord)
+            run_health_check()
             print(f"\n  Next check in {interval}s...")
             time.sleep(interval)
     else:
-        run_health_check(discord_webhook=discord)
+        run_health_check()

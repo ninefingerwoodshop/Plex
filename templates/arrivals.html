@@ -214,20 +214,6 @@
         .filter-btn:active:not(.active) { background: rgba(255,255,255,0.05); }
         .filter-divider { width: 1px; height: 20px; background: #333; margin: 0 4px; }
 
-        .btn-discord {
-            padding: 7px 16px;
-            border: 1px solid rgba(114,137,218,0.4);
-            border-radius: 20px;
-            background: rgba(114,137,218,0.12);
-            color: #7289da;
-            font-size: 0.8rem;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.25s;
-            margin-left: auto;
-        }
-        .btn-discord:hover { background: rgba(114,137,218,0.25); }
-
         /* Genre pills */
         .genre-bar {
             display: flex;
@@ -432,46 +418,6 @@
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Discord modal */
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 300;
-            display: none;
-            align-items: center; justify-content: center;
-            backdrop-filter: blur(4px);
-        }
-        .modal-overlay.open { display: flex; }
-        .modal {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            width: 90%; max-width: 440px;
-            animation: fadeUp 0.3s cubic-bezier(0.16,1,0.3,1);
-        }
-        .modal h3 { color: #fff; font-size: 1.1rem; margin-bottom: 12px; }
-        .modal p { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 16px; }
-        .modal input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.05);
-            color: var(--text);
-            font-size: 0.85rem;
-            outline: none;
-            margin-bottom: 12px;
-        }
-        .modal input:focus { border-color: rgba(114,137,218,0.5); }
-        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
-        .btn-modal {
-            padding: 9px 20px; border: none; border-radius: 8px;
-            font-size: 0.8rem; font-weight: 700; cursor: pointer;
-        }
-        .btn-modal-cancel { background: rgba(255,255,255,0.08); color: var(--text-dim); }
-        .btn-modal-send { background: #7289da; color: #fff; }
-
         @media (max-width: 600px) {
             .stats-bar { gap: 8px; }
             .stat-card { min-width: 80px; padding: 10px 14px; }
@@ -540,7 +486,6 @@
             <button class="filter-btn active" data-days="7" onclick="changePeriod(7)">This Week</button>
             <button class="filter-btn" data-days="14" onclick="changePeriod(14)">2 Weeks</button>
             <button class="filter-btn" data-days="30" onclick="changePeriod(30)">This Month</button>
-            <button class="btn-discord" onclick="openDiscordModal()">Send to Discord</button>
         </div>
 
         <!-- Genre breakdown -->
@@ -561,19 +506,6 @@
                 <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
                 <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
                 <div class="skeleton-card"><div class="skeleton-poster"></div><div class="skeleton-text"><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Discord Modal -->
-    <div class="modal-overlay" id="discordModal">
-        <div class="modal">
-            <h3>Send Digest to Discord</h3>
-            <p>Paste your Discord webhook URL to send this week's arrivals digest to your server.</p>
-            <input type="text" id="webhookInput" placeholder="https://discord.com/api/webhooks/...">
-            <div class="modal-actions">
-                <button class="btn-modal btn-modal-cancel" onclick="closeDiscordModal()">Cancel</button>
-                <button class="btn-modal btn-modal-send" onclick="sendToDiscord()">Send Digest</button>
             </div>
         </div>
     </div>
@@ -705,39 +637,6 @@
             document.getElementById('loading').innerHTML = `<div class="status-msg">Error loading digest: ${e.message}</div>`;
         }
     }
-
-    function openDiscordModal() {
-        document.getElementById('discordModal').classList.add('open');
-        document.getElementById('webhookInput').focus();
-    }
-
-    function closeDiscordModal() {
-        document.getElementById('discordModal').classList.remove('open');
-    }
-
-    async function sendToDiscord() {
-        const url = document.getElementById('webhookInput').value.trim();
-        if (!url) { toast('Enter a webhook URL', 'error'); return; }
-
-        try {
-            const r = await fetch('/api/arrivals/discord', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ webhook_url: url, days: currentDays }),
-            });
-            const data = await r.json();
-            if (data.error) throw new Error(data.error);
-            closeDiscordModal();
-            toast('Digest sent to Discord!');
-        } catch (e) {
-            toast('Error: ' + e.message, 'error');
-        }
-    }
-
-    // Close modal on overlay click
-    document.getElementById('discordModal').addEventListener('click', e => {
-        if (e.target.classList.contains('modal-overlay')) closeDiscordModal();
-    });
 
     loadDigest(7);
     </script>

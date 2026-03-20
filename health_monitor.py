@@ -1,5 +1,5 @@
 # Plex Media Stack - Health Monitor Service
-# Periodically checks system health and sends Discord notifications.
+# Periodically checks system health and saves reports.
 
 import os
 import time
@@ -11,9 +11,8 @@ from api import (
     plex_get, get_plex_movies, get_plex_shows,
     get_plex_movie_details, get_plex_show_seasons, get_plex_season_episodes,
     radarr_get, sonarr_get,
-    send_discord,
 )
-from config import PLEX, STORAGE, HEALTH, NOTIFY
+from config import PLEX, STORAGE, HEALTH
 
 REPORT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "health_report.json")
 
@@ -353,35 +352,6 @@ def format_report(report):
     return "\n".join(lines)
 
 
-def alert_if_needed(report):
-    """Send a Discord notification if the report contains warnings.
-
-    Triggers on: any disk above threshold, any service down, or check-level
-    errors.
-    """
-    warnings = []
-    checks = report.get("checks", {})
-
-    # Disk warnings
-    for d in checks.get("disk_space", []):
-        if isinstance(d, dict) and d.get("warning"):
-            if d.get("error"):
-                warnings.append(f"Disk {d['drive']}: {d['error']}")
-            else:
-                warnings.append(f"Disk {d['drive']}: {d['pct_used']:.1f}% used ({d['free_gb']:.1f} GB free)")
-
-    # Service warnings
-    svc = checks.get("service_health", {})
-    if isinstance(svc, dict):
-        for name, info in svc.items():
-            if isinstance(info, dict) and not info.get("up"):
-                warnings.append(f"Service DOWN: {name}")
-
-    if not warnings:
-        return
-
-    body = "**Health Monitor Alerts**\n" + "\n".join(f"- {w}" for w in warnings)
-    send_discord(body, title="Plex Health Alert")
 
 
 # ---------------------------------------------------------------------------
@@ -413,8 +383,7 @@ def get_latest_report():
 def monitor_loop():
     """Run health checks on a recurring interval.
 
-    Saves the latest report to health_report.json and sends Discord
-    alerts when warnings are detected.
+    Saves the latest report to health_report.json.
     """
     interval = HEALTH.get("check_interval_minutes", 60) * 60  # seconds
     print(f"[HealthMonitor] Starting - checking every {HEALTH.get('check_interval_minutes', 60)} minutes")
@@ -424,7 +393,6 @@ def monitor_loop():
             report = run_full_health_check()
             _save_report(report)
             print(format_report(report))
-            alert_if_needed(report)
             print(f"[HealthMonitor] Next check in {HEALTH.get('check_interval_minutes', 60)} minutes\n")
         except Exception as exc:
             print(f"[HealthMonitor] Unexpected error: {exc}")

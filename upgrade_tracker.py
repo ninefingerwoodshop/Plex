@@ -7,7 +7,6 @@ from datetime import datetime
 from api import (
     radarr_get, sonarr_get,
     get_plex_movies, get_plex_shows, get_plex_movie_details,
-    send_discord,
 )
 from config import PLEX
 

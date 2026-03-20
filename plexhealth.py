@@ -128,13 +128,10 @@ def run_upgrades():
 def run_webhooks(flags):
     from webhooks import start_webhook_server
     port = 5555
-    discord = None
     for a in flags:
         if a.startswith("--port="):
             port = int(a.split("=")[1])
-        elif a.startswith("--discord="):
-            discord = a.split("=", 1)[1]
-    start_webhook_server(port=port, discord_url=discord)
+    start_webhook_server(port=port)
 
 
 def run_dashboard(flags):
@@ -208,42 +205,19 @@ def run_posters(flags):
 
 def run_scheduler(flags):
     from scheduler import run_health_check
-    discord = None
     interval = None
     for a in flags:
-        if a.startswith("--discord="):
-            discord = a.split("=", 1)[1]
-        elif a.startswith("--interval="):
+        if a.startswith("--interval="):
             interval = int(a.split("=")[1])
 
     if interval:
         import time
         print(f"  Running health checks every {interval}s")
         while True:
-            run_health_check(discord_webhook=discord)
+            run_health_check()
             time.sleep(interval)
     else:
-        run_health_check(discord_webhook=discord)
-
-
-def run_discord(flags):
-    from discord_bot import send_daily_report, send_movie_pick, send_new_additions
-    webhook = None
-    action = "report"
-    for a in flags:
-        if a.startswith("--webhook="):
-            webhook = a.split("=", 1)[1]
-        elif a == "--pick":
-            action = "pick"
-        elif a == "--new":
-            action = "new"
-
-    if action == "report":
-        send_daily_report(webhook_url=webhook)
-    elif action == "pick":
-        send_movie_pick(webhook_url=webhook)
-    elif action == "new":
-        send_new_additions(webhook_url=webhook)
+        run_health_check()
 
 
 def run_recommend(flags):
@@ -321,7 +295,6 @@ COMMANDS = {
     "tv-audit": run_tv_audit,
     "posters": run_posters,
     "schedule": run_scheduler,
-    "discord": run_discord,
     "recommend": run_recommend,
     "playlists": run_playlists,
     "cleanup": run_cleanup,
@@ -331,7 +304,7 @@ COMMANDS = {
 # Commands that accept flags
 FLAG_COMMANDS = {
     "subs", "collections", "tv", "radarr-add", "webhooks", "dashboard",
-    "pick", "similar", "posters", "schedule", "discord",
+    "pick", "similar", "posters", "schedule",
     "recommend", "playlists", "cleanup", "service",
 }
 
